@@ -1,0 +1,24 @@
+[submodule "packages/minecraft-data-generator"]
+	path = packages/minecraft-data-generator
+	url = https://github.com/mc-zuri/minecraft-data-generator.git
+	branch = main
+[submodule "packages/minecraft-data"]
+	path = packages/minecraft-data
+	url = https://github.com/mc-zuri/node-minecraft-data.git
+	branch = main
+[submodule "packages/minecraft-assets"]
+	path = packages/minecraft-assets
+	url = https://github.com/mc-zuri/node-minecraft-assets.git
+	branch = main
+[submodule "packages/minecraft-jar-extractor"]
+	path = packages/minecraft-jar-extractor
+	url = https://github.com/mc-zuri/minecraft-jar-extractor.git
+	branch = main
+[submodule "packages/prismarine-registry"]
+	path = packages/prismarine-registry
+	url = https://github.com/mc-zuri/prismarine-registry.git
+	branch = main
+[submodule "packages/prismarine-viewer"]
+	path = packages/prismarine-viewer
+	url = https://github.com/mc-zuri/prismarine-viewer.git
+	branch = main
