@@ -11,7 +11,7 @@ overrides:
   prismarine-block: workspace:*
   prismarine-viewer: workspace:*
   minecraft-assets: workspace:*
-  minecraft-bedrock-extractor: workspace:*
+  bedrock-assets-extractor: workspace:*
 
 importers:
 
@@ -57,16 +57,7 @@ importers:
         specifier: ^17.1.2
         version: 17.1.2(supports-color@8.1.1)
 
-  packages/minecraft-assets:
-    devDependencies:
-      require-self:
-        specifier: ^0.2.3
-        version: 0.2.3
-      standard:
-        specifier: ^17.0.0
-        version: 17.1.2
-
-  packages/minecraft-bedrock-extractor:
+  packages/bedrock-assets-extractor:
     dependencies:
       minecraft-data:
         specifier: workspace:*
@@ -83,6 +74,15 @@ importers:
         version: 11.8.0
       standard:
         specifier: ^17.1.2
+        version: 17.1.2
+
+  packages/minecraft-assets:
+    devDependencies:
+      require-self:
+        specifier: ^0.2.3
+        version: 0.2.3
+      standard:
+        specifier: ^17.0.0
         version: 17.1.2
 
   packages/minecraft-data:

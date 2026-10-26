@@ -2,9 +2,9 @@
 
 Bedrock Edition support for [prismarine-viewer](https://github.com/PrismarineJS/prismarine-viewer), for every Bedrock
 version [minecraft-data](https://github.com/PrismarineJS/minecraft-data) has (0.14 to 1.26.51), done as assets rather
-than viewer code: [minecraft-bedrock-extractor](packages/minecraft-bedrock-extractor) writes Bedrock's own blocks and
-items into [minecraft-assets](https://github.com/PrismarineJS/minecraft-assets) in the format of its Java versions,
-and the viewer draws them with the code it draws Java with.
+than viewer code: [bedrock-assets-extractor](https://github.com/mc-zuri/bedrock-assets-extractor) writes Bedrock's
+own blocks and items into [minecraft-assets](https://github.com/PrismarineJS/minecraft-assets) in the format of its
+Java versions, and the viewer draws them with the code it draws Java with.
 
 ```sh
 git clone --recurse-submodules <this repository>
@@ -21,7 +21,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 | prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation, a piston's arm); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
-| minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
+| bedrock-assets-extractor | packages/bedrock-assets-extractor | mc-zuri/bedrock-assets-extractor `main` | | the extractor |
 | minecraft-jar-extractor | packages/minecraft-jar-extractor | PrismarineJS/minecraft-jar-extractor `master` (mc-zuri's fork merged) | `bedrock-viewer` | Java's chests and other block entities as block models |
 | minecraft-data | packages/minecraft-data | PrismarineJS/node-minecraft-data `master` | `bedrock-viewer` | node-minecraft-data#468 (`blockSelectionShapes`), the data below |
 | (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes`; a name per Bedrock 0.14 - 1.0 block (the Bedrock name of each id where two shared one: `flowing_water`, `wall_sign`, `lit_furnace`...) |

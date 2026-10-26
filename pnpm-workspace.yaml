@@ -12,7 +12,7 @@ overrides:
   prismarine-block: "workspace:*"
   prismarine-viewer: "workspace:*"
   minecraft-assets: "workspace:*"
-  minecraft-bedrock-extractor: "workspace:*"
+  bedrock-assets-extractor: "workspace:*"
 
 # prismarine-viewer's webpack build injects the browser polyfills (buffer, process) into every module it bundles, the
 # workspace packages' too, and requires events: hoisted so those packages resolve them from the root.

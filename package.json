@@ -4,7 +4,7 @@
   "private": true,
   "description": "Bedrock support for prismarine-viewer: a Bedrock asset extractor writing minecraft-assets' format, and the PR branches it renders with",
   "scripts": {
-    "extract": "pnpm --filter minecraft-bedrock-extractor run extract",
+    "extract": "pnpm --filter bedrock-assets-extractor run extract",
     "prerender": "pnpm --filter prismarine-viewer run prepare",
     "example": "pnpm --filter bedrock-viewer-example start"
   },

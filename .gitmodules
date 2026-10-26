@@ -26,3 +26,7 @@
 	path = packages/minecraft-jar-extractor
 	url = https://github.com/PrismarineJS/minecraft-jar-extractor
 	branch = bedrock-viewer
+[submodule "packages/bedrock-assets-extractor"]
+	path = packages/bedrock-assets-extractor
+	url = https://github.com/mc-zuri/bedrock-assets-extractor.git
+	branch = main
