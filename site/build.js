@@ -12,7 +12,7 @@ const fs = require('fs')
 const path = require('path')
 const { execFileSync } = require('child_process')
 const { pack } = require('prismarine-viewer/viewer/lib/sharedJson')
-const { getVersion } = require('prismarine-viewer/viewer/lib/version')
+const { getVersion, supportedVersions } = require('prismarine-viewer/viewer/lib/version')
 
 const dist = path.join(__dirname, 'dist')
 const viewerPublic = path.join(path.dirname(require.resolve('prismarine-viewer/package.json')), 'public')
@@ -34,11 +34,10 @@ for (const name of fs.readdirSync(path.join(viewerPublic, 'textures')).filter(n 
   copy(path.join(viewerPublic, 'textures', name), path.join(dist, 'textures', name))
 }
 copy(path.join(viewerPublic, 'entities'), path.join(dist, 'entities'))
-// the font name tags are drawn in (the newest Java version's: Bedrock's is the same)
-for (const name of fs.readdirSync(path.join(viewerPublic, 'textures'))) {
-  const font = path.join(viewerPublic, 'textures', name, 'font')
-  if (!isBedrock(name) && fs.existsSync(font)) copy(font, path.join(dist, 'textures', name, 'font'))
-}
+// the font name tags are drawn in: the newest Java version's (Bedrock's is the same), from minecraft-assets, where the
+// viewer looks for it (a Bedrock-only prerender writes no Java textures)
+const newestJava = supportedVersions[supportedVersions.length - 1]
+copy(path.join(require('minecraft-assets')(newestJava).directory, 'font'), path.join(dist, 'textures', newestJava, 'font'))
 
 // the Bedrock block states, packed
 fs.mkdirSync(path.join(dist, 'blocksStates'), { recursive: true })
