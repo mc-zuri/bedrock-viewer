@@ -18,7 +18,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 
 | Package | Path | Source | Branch here | What it adds |
 |---|---|---|---|---|
-| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
@@ -65,12 +65,17 @@ pnpm prerender                                         # the viewer's atlases an
 - **Block entities**: the blocks the client draws with block entity renderers, in place, with the block entities a
   server sends: beds of five colours, chests, heads on the floor turned by their rotation and on a wall, standing,
   wall and hanging signs, standing and wall banners, a decorated pot, copper golem statues;
-- **Entities, armor, held and dropped items, particles**: the version's mobs, players in armor holding items (one in
-  a skin sent as its pixels), a zombie walking with its sword and armor, dropped items, particle effects;
+- **Entities, armor, held and dropped items, particles**: the version's mobs and flyers animated as the game animates
+  them (prismarine-viewer's Bedrock entity runtime), players in armor holding items (one in a skin a server would
+  send), a zombie walking with its sword and armor, dropped items, particle effects;
 - **Redstone dust**: dust connected by its neighbours: lines, corners, a T, a cross, a lone dust, dust climbing a
   block, into a repeater and from a torch;
 - **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the
   nether reactor, glowing obsidian, coloured and underwater torches, hard glass.
+
+*All entities* opens a page of every entity of the version: focus one, set its mode (walk, sprint, swim, glide, sit,
+sleep...), what it holds and wears and its flags, and play its actions (attack, hurt, die...) and any of its animations,
+on it or on all of them.
 
 Click a block to read its Bedrock name, state and block entity. `#camera=x,y,z&target=x,y,z` in the address sets
 the camera.

@@ -28,7 +28,8 @@
   },
   "standard": {
     "ignore": [
-      "public/client.js"
+      "public/client.js",
+      "public/entities.js"
     ]
   }
 }

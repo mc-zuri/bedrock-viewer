@@ -12,6 +12,7 @@ const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 const mcData = require('minecraft-data')
 const { buildScene, SCENES } = require('./scenes')
 const { PNG } = require('pngjs')
+const { encodeSkin } = require('prismarine-viewer/viewer/lib/bedrock/entity/skinData')
 
 const port = +(process.env.PORT ?? 3000)
 const viewerPublic = path.join(path.dirname(require.resolve('prismarine-viewer/package.json')), 'public')
@@ -58,6 +59,9 @@ function raycast (origin, direction, maxDistance = 256) {
 const app = express()
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')))
 app.get('/client.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'client.js')))
+// every entity of a version, its modes, equipment, flags, events and animations (client/entities.js)
+app.get('/entities.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'entities.html')))
+app.get('/entities.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'entities.js')))
 app.get('/api/state', (req, res) => res.json({
   version: current.version,
   scene: current.scene,
@@ -80,26 +84,26 @@ setupRoutes(app)
 const http = require('http').createServer(app)
 const io = require('socket.io')(http)
 
-// the entity models of a version's assets (entities.json), or {}
-function entityModels (version) {
+// the client entities of a version's assets (minecraft-assets' entities.json: { entities: { identifier: ... } }), or {}
+function clientEntities (version) {
   const assets = versions.find(v => v.version === version)?.assets
   try {
-    return JSON.parse(fs.readFileSync(path.join(viewerPublic, 'textures', assets, 'entities.json'), 'utf8'))
+    return require('minecraft-assets')(assets)?.entities?.entities ?? {}
   } catch {
     return {}
   }
 }
 
-// a player skin as a Bedrock server sends it, its pixels (RGBA, base64): the version's own default skin, its colours
-// turned round (red to green, green to blue, blue to red) to tell it from the default
-function skinPixels (version) {
-  const assets = versions.find(v => v.version === version)?.assets
+// a player's skin as a Bedrock server sends it (player_list's skin_data), encoded as the viewer takes it
+// (bedrockSkin): the version's own Steve, its colours turned round (red to green, green to blue, blue to red) to tell
+// it from the default
+function skinOf (version) {
+  const assets = require('minecraft-assets')(versions.find(v => v.version === version)?.assets)
   try {
-    const models = entityModels(version)
-    const file = path.join(viewerPublic, models.player.textures.default.replace('textures', 'textures/' + assets) + '.png')
-    const png = PNG.sync.read(fs.readFileSync(file))
+    const steve = clientEntities(version)['minecraft:player']?.textures?.default ?? 'textures/entity/steve'
+    const png = PNG.sync.read(fs.readFileSync(assets.pathOf(steve.replace(/^textures\//, '') + '.png')))
     for (let i = 0; i < png.data.length; i += 4) [png.data[i], png.data[i + 1], png.data[i + 2]] = [png.data[i + 2], png.data[i], png.data[i + 1]]
-    return { width: png.width, height: png.height, data: png.data.toString('base64') }
+    return encodeSkin({ skin_data: { width: png.width, height: png.height, data: png.data }, arm_size: 'wide' })
   } catch {
     return undefined
   }
@@ -114,10 +118,10 @@ io.on('connection', socket => {
   }
   // the scene's entities the version has models of (and dropped items); one walking to and fro; its particle effects,
   // every second (or every few)
-  const models = entityModels(version)
+  const models = clientEntities(version)
   for (const { walk, skinPixels: pixels, ...entity } of entities) {
-    if (entity.name !== 'item' && !models[entity.name]) continue
-    socket.emit('entity', pixels ? { ...entity, skin: skinPixels(version) } : entity)
+    if (entity.name !== 'item' && !models['minecraft:' + entity.name]) continue
+    socket.emit('entity', pixels ? { ...entity, bedrockSkin: skinOf(version) } : entity)
   }
   let tick = 0
   const timer = setInterval(() => {

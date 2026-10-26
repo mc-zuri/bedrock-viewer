@@ -366,9 +366,10 @@ function redstone (world) {
   return { center: new Vec3(6, 1, 6), radius: 10, camera: { x: 6, y: 10, z: 16 } }
 }
 
-// Entities, drawn from the version's own entity models: a crowd of mobs facing south; a zombie in iron armor holding a
-// sword walking to and fro; players in armor holding items, one in a skin sent as its pixels (as a Bedrock server sends
-// a player's); items dropped on the ground; and particle effects (a Bedrock version's own) above them.
+// Entities, drawn and animated as the game draws them, from the version's own client entities: a crowd of mobs facing
+// south, flyers over them (an allay, a parrot, a phantom, a ghast, the ender dragon); a zombie in iron armor holding a
+// sword walking to and fro; players in armor holding items, one in a skin a Bedrock server would send; items dropped on
+// the ground; and particle effects (a Bedrock version's own) above them.
 function entityScene (world) {
   const grass = world.first('grass_block', 'grass')
   for (let x = -2; x <= 24; x++) for (let z = -2; z <= 16; z++) world.set(x, 0, z, grass)
@@ -386,6 +387,9 @@ function entityScene (world) {
   add({ name: 'player', username: 'Steve', pos: { x: 3, y: 1, z: 11 }, equipment: ['diamond_sword', 'shield', 'diamond_boots', 'diamond_leggings', 'diamond_chestplate', 'diamond_helmet'] })
   add({ name: 'player', username: 'Alex', skinModel: 'slim', pos: { x: 6, y: 1, z: 11 }, equipment: ['bow', null, 'netherite_boots', 'netherite_leggings', 'netherite_chestplate', 'netherite_helmet'] })
   add({ name: 'player', username: 'Pixels', skinPixels: true, pos: { x: 9, y: 1, z: 11 }, equipment: ['golden_axe', null, 'leather_boots', null, 'chainmail_chestplate', 'turtle_helmet'] })
+  // flying: an allay, a parrot, a phantom, a ghast, and the ender dragon high over the scene, their wings and tails as
+  // their animations move them
+  ;[['allay', 2, 3, 13], ['parrot', 4, 3, 13], ['phantom', 7, 4, 14], ['ghast', 20, 7, 12], ['ender_dragon', 11, 14, -10]].forEach(([name, x, y, z]) => add({ name, pos: { x, y, z } }))
   // items on the ground
   const dropped = ['diamond', 'apple', 'iron_sword', 'bow', 'redstone', 'egg', 'cake', 'grass_block', 'oak_log', 'torch']
   dropped.forEach((itemName, i) => add({ name: 'item', itemName, pos: { x: 12 + (i % 5), y: 1, z: 11 + Math.floor(i / 5) * 2 } }))
@@ -407,7 +411,7 @@ function entityScene (world) {
     { name: 'minecraft:totem_particle', pos: at(23, 8, 2) },
     { name: 'minecraft:huge_explosion_emitter', pos: at(22, 2, 4), every: 4 }
   ]
-  return { center: new Vec3(11, 1, 7), radius: 14, camera: { x: 11, y: 8, z: 22 }, entities, particles }
+  return { center: new Vec3(11, 2, 6), radius: 16, camera: { x: 11, y: 9, z: 24 }, entities, particles }
 }
 
 const SCENES = {

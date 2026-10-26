@@ -58,10 +58,9 @@ version before it shares that one's folder (`"1.21.2": "1.21.0"`).
 | `items_textures.json` | `[{ name, model, texture }]` of every minecraft-data item: `minecraft:items/<file>` or `minecraft:block/<file>`. |
 | `items/*.png` | Item icons: the item's definition, its `item_texture.json` entry, the icons the client names in code; a spawn egg in its mob's colours and a block item's carried texture in its fixed colours, baked. A legacy item (0.14 - 1.0), which minecraft-data names by its display name (`leather_cap`), takes the icon of the item of that display name (`leather_helmet`); a photo, which has no icon of its own, the camera's. |
 | `texture_content.json` | `[{ name, texture }]`: each item's icon as a data URL. |
-| `entities.json` | `{ name: { identifier, geometry: { layer: geometry }, textures: { layer: path } } }`: each entity's model, in the format of prismarine-viewer's own entity models (the client entity description, its geometry resolved). |
-| `attachables.json` | `{ item: { slot, geometry, texture } }`: the armor an entity wears. |
-| `particles.json` | `{ identifier: { texture, material, components } }`: the particle effects. |
-| `entity/`, `models/armor/`, `particle/`... | The textures those name, as PNG at their path below `textures/`. |
+| `entities.json` | The client entity resources of the version's packs, as the client reads them: `entities` (each client entity description, the file of the highest `min_engine_version`, every pack's copy of it merged), `attachables` (what an item worn or held is drawn with), `geometry` (every format as one, inheritance resolved), `render_controllers`, `animations`, `animation_controllers`, `materials` (each resolved through its parents), `entity_properties` (the behaviour pack's), `missing`, `problems`. |
+| `particles.json` | `{ format_version: 1, particles: { identifier: effect }, files, missing }`: the particle effects as the packs write them (Molang, curves, events). |
+| `entity/`, `models/armor/`, `particle/`... | The textures those name, as PNG at their path below `textures/`; one the packs name but lack is the nearest they have (`lib/textures/substitute.js`). |
 | `meta.json` | The source, counts, and what was not resolved. |
 
 ### How blocks are drawn
@@ -91,33 +90,26 @@ A colour the client gives a block whatever the biome (a lily pad, a birch or spr
 flattening, a stem by its growth, redstone dust by its power) is baked into a tinted copy of the texture, since
 prismarine-viewer picks a tint by block name; grass and foliage keep `tintindex` and take the biome's colour.
 
-### How entities are drawn
+### Entities and particle effects
 
-An entity is what its client entity description's render controllers draw (`entity/*.json`, every pack's copy merged
-as the client merges them; `render_controllers/`), in the state of a living adult at full health of its first
-variant: every query 0 but `query.is_alive` and `query.health`, its own `initialize` and `pre_animation` scripts run
-(Molang, `lib/molang.js`). A controller whose condition fails is not drawn, nor the bones its `part_visibility` hides
-(a horse's saddle, a charged creeper's armor, a wither's shield). A controller's textures are laid over each other into
-one (a villager's biome and profession). Its geometry is resolved from `models/` with the geometry it inherits from
-(`geometry.zombie:geometry.humanoid`: bones merged by name, `inflate`, `reset`, `neverRender`), in its resting pose:
-what the animations its scripts and its animation controllers' initial states run do to its bones at their start, in
-that state, `this` a bone's own rotation (a spider's legs spread, a horse's neck raised, a donkey's chests scaled away;
-`lib/entities/pose.js`). Of two files describing one entity, the one of the highest `min_engine_version` is read, as
-the client reads it. `player` is drawn with
-`geometry.humanoid.custom` and steve, `player_slim` with `geometry.humanoid.customSlim` and alex, both with the cape's
-geometry.
+`entities.json` and `particles.json` are the version's own resources, unevaluated: prismarine-viewer's Bedrock entity
+runtime draws them as the client does, its render controllers, animations and animation controllers run in Molang
+each frame, with its materials and attachables (`viewer/lib/bedrock`). They are read from the version's own packs, not
+the newer clients' below them.
 
-Armor is the version's attachable of the item (`attachables/`), else what the client draws in code: the slot's
-`geometry.humanoid.armor.<slot>` (or the slot's bones of `geometry.humanoid.armor1` / `armor2`) on the material's
-`textures/models/armor/<material>_<layer>`; undyed leather is the pack's brown `cloth` texture.
+- Of the files describing one entity, the client reads the one of the highest `min_engine_version`, every pack's copy
+  of that file merged (1.19.60's `iron_golem.entity.json` is its spawn egg alone).
+- Materials come from `materials/*.material`; a source with none (bedrock-samples) takes them from
+  `data/entity_materials.json`, the client's, resolved, per range of versions.
+- 1.26.51's client ships its particle effects compiled (binary `MCB` files): their text is Mojang's published pack of
+  the version (bedrock-samples), each checked against the compiled file (`lib/particles/compiled.js`).
+- Every texture of `textures/models/armor/` is written too: before 1.26.10 the client drew armour in code, and the
+  viewer draws it with the newest version's attachables where the version has their textures.
 
-Particle effects are the version's `particles/*.json`. 1.26.51's client ships them compiled (binary `MCB` files): they
-are read from Mojang's published pack of the version (bedrock-samples), which has them as JSON.
-
-0.14 - 1.0 have no client entity descriptions, render controllers or particle effects (the client draws its mobs and
-particles in code): an entity is drawn with the geometry and textures the reference version's description names, from
-the version's own packs (`models/mobs.json`, `textures/mob/`); 0.14, which has no geometry data, takes the nearest
-newer client's. An entity none of whose textures the version has is not written.
+0.14 - 1.0 have no client entity resources (the client draws its mobs and particles in code): their `entities.json`
+is the reference version's (1.16.201), drawn with the version's own textures (`textures/mob/` in 0.14 and 0.15) and
+geometry (`models/mobs.json`; 0.14, which has none, the nearest newer client's) where it has them. An entity none of
+whose textures the version has is left out.
 
 ### Shapes the neighbours decide
 
@@ -153,9 +145,8 @@ block entity takes, and after them the variants keyed by the state alone, which 
   client's code, in no pack), a decorated pot's sherds, a statue's pose, a double chest's other half: block entity
   data the client draws in code.
 - Education Edition's chalkboards: a board over up to 3 x 2 blocks that its block entity lays out from one of them.
-- Entities the client draws in code, with no geometry in any pack: boats, the block entity actors (`decorated_pot`,
-  `trial_spawner`), wind charges, evocation fangs. Entity animation (the viewer animates walking limbs itself), a
-  mob's variants other than its first, dyed leather, and particle effects' events (an effect another spawns).
+- Boats, whose geometry the client builds in code: the viewer draws them with the classic boat model, the layout
+  Bedrock's boat textures keep.
 - `mysterious_frame` and `mysterious_frame_slot` (1.17.40 - 1.18.11): server blocks behind an experiment that no
   client of those versions has textures or a `blocks.json` entry of; they draw as the missing tile, as the client
   draws them.

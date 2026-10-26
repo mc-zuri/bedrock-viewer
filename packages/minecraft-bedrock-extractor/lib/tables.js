@@ -6,6 +6,7 @@
 //   tessellator the fence tessellator's boxes by connection mask
 //   legacyKeys  block name -> the blocks.json keys its description id names (grass_block -> grass)
 //   itemIcons   the client's item definitions (identifier -> icon) per range of versions, for sources without them
+//   entityMaterials  the client's entity materials, resolved, per range of versions, for packs without material files
 const fs = require('fs')
 const path = require('path')
 
@@ -25,7 +26,8 @@ function loadTables () {
     layouts,
     tessellator: withoutMeta(read('tessellator_shapes.json')),
     legacyKeys: new Map(Object.entries(read('legacy_keys.json').blocks)),
-    itemIcons: read('item_icons.json')
+    itemIcons: read('item_icons.json'),
+    entityMaterials: read('entity_materials.json')
   }
 }
 

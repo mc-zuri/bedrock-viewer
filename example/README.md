@@ -18,12 +18,32 @@ from the version's own block states, as prismarine-chunk Bedrock columns:
 | Every state of (regex) | every state (the first 128) of each block whose name matches, a row a block: stairs by `weirdo_direction` and `upside_down_bit`, walls by `wall_connection_type_*`, doors by `door_hinge_bit` and `upper_block_bit`, rails by `rail_direction`... |
 | Fences, panes, walls, stairs | a fence pen with a gate, glass panes up to a glass block, iron bars in a T, a wall, a ring of stairs: their connections and corners set in their states as a server sends them from 1.26.50, worked out from the neighbours by the viewer before |
 | Block entities | beds of five colours and heads on the floor turned by their `Rotation` (the block entities a server sends with them), chests, heads on a wall, signs standing and on a wall, hanging signs on a wall and under a beam, banners standing and on a wall, a decorated pot, copper golem statues: drawn from Bedrock's entity geometry and sheets |
-| Entities, armor, held and dropped items, particles | the version's mobs; a zombie in iron armor with a sword walking to and fro; players in armor holding items, one in a skin sent as its pixels (as a Bedrock server sends a player's); dropped items; particle effects every second (hearts, flames, smoke, campfire smoke, portal, redstone, totem, an explosion) |
+| Entities, armor, held and dropped items, particles | the version's mobs and flyers (an allay, a parrot, a phantom, a ghast, the ender dragon), animated as the game animates them; a zombie in iron armor with a sword walking to and fro; players in armor holding items, one in a skin a Bedrock server would send (its pixels, `bedrockSkin`); dropped items; particle effects every second (hearts, flames, smoke, campfire smoke, portal, redstone, totem, an explosion) |
 | Redstone dust | dust connected by its neighbours: a line from a lever fading with its signal, a corner, a T, a cross, a lone dust, dust up a block and down it, into a repeater, from a torch |
 | Bedrock-only blocks | the blocks Java has no counterpart of: Education Edition's elements and chemistry blocks, cameras, border, allow, deny, the nether reactor, glowing obsidian, coloured and underwater torches, hard glass, item frames |
 
 Click a block to read its Bedrock name, state, state id and block entity (the server reads them from the scene's
 chunks).
+
+## All entities
+
+`entities.html` (the page's *All entities* link) draws every entity of a version, as prismarine-viewer's Bedrock entity
+runtime draws and animates it, in a grid (filter it by name). Click one, or pick it in *Focus*, to look at it alone;
+what the controls set then applies to it, or to all of them (*Apply to*):
+
+- **Mode**: stand, walk, sprint, sneak, sneak + walk, swim, glide, fly / fall, crawl, sit, ride, sleep, rest; baby, in
+  water, using an item (the flags and motion the game sends for them: see *What each mode sets*)
+- **Holds** and **Wears**: an item in either hand, armour (the version's attachables, or the newest version's where it
+  has their textures)
+- **Flags**: sheared, saddled, chested, tamed, angry, powered, charged, casting, standing, and any other by name;
+  variant, mark variant, colour, climate
+- **Do**: attack, hurt, die, revive, graze, shake, offer a flower, jump (the entity events the server sends)
+- **Animation**: any of the focused entity's animations and animation controllers, played as the server plays them
+  (animate_entity), and its entity properties
+- **Skin**: the players as Steve and Alex, or a skin image of your own
+
+`entities.html?version=bedrock_1.26.51&mode=walk&focus=spider&filter=zombie` opens it so. The page is the
+bedrock-web-viewer proof of concept's entities page (`client/entities.js`, `client/common.js`).
 `#camera=x,y,z&target=x,y,z` in the address places the camera.
 
 `client/index.js` is the page: prismarine-viewer's `Viewer` with an orbit camera, bundled by `build.js` (esbuild, the

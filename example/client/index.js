@@ -69,6 +69,8 @@ fetch('api/state').then(r => r.json()).then(state => {
   }
   for (const s of state.scenes) $('scene').add(new window.Option(s.title, s.name))
   $('version').value = state.version
+  // (the entities page of the version shown)
+  $('entitiesLink').href = 'entities.html?version=' + state.version
   $('scene').value = state.scene
   $('filter').value = state.filter
 })
