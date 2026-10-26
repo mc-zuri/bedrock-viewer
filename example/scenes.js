@@ -383,7 +383,7 @@ function containers (world) {
     const lower = open => world.state(doorName, { direction, 'minecraft:cardinal_direction': cardinal, open_bit: open, upper_block_bit: 0, door_hinge_bit: 0 })
     world.set(x, 1, z, lower(0))
     // (before 1.2 the upper half's hinge is the low bit of its data, which its states read as its direction)
-    world.set(x, 2, z, world.state(doorName, { upper_block_bit: 1, door_hinge_bit: hinge, open_bit: 0, ...(world.mcData.blockStates ? {} : { direction: hinge }) }))
+    world.set(x, 2, z, world.state(doorName, world.mcData.blockStates ? { upper_block_bit: 1, door_hinge_bit: hinge, open_bit: 0 } : { upper_block_bit: 1, open_bit: 0, direction: hinge }))
     blocks.push({ pos: { x, y: 1, z }, states: [lower(0), lower(1)] })
   }
   if (doorName) SIDES.forEach((side, i) => [0, 1].forEach(hinge => door(1 + i * 4 + hinge * 2, 8, side, hinge)))
