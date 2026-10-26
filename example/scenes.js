@@ -474,8 +474,10 @@ function entityScene (world) {
   // flying: an allay, a parrot, a phantom, a ghast, and the ender dragon high over the scene, their wings and tails as
   // their animations move them
   ;[['allay', 2, 3, 13], ['parrot', 4, 3, 13], ['phantom', 7, 4, 14], ['ghast', 20, 7, 12], ['ender_dragon', 11, 14, -10]].forEach(([name, x, y, z]) => add({ name, pos: { x, y, z } }))
-  // items on the ground
-  const dropped = ['diamond', 'apple', 'iron_sword', 'bow', 'redstone', 'egg', 'cake', 'grass_block', 'oak_log', 'torch']
+  // items on the ground, by the version's names: an oak log is wood in 0.14 - 1.0 and log from 1.16.201 to 1.19.70, a
+  // grass block grass from 1.16.201 to 1.20.61
+  const item = (...names) => names.find(name => world.mcData.itemsByName[name])
+  const dropped = ['diamond', 'apple', 'iron_sword', 'bow', 'redstone', 'egg', 'cake', item('grass_block', 'grass'), item('oak_log', 'log', 'wood'), 'torch']
   dropped.forEach((itemName, i) => add({ name: 'item', itemName, pos: { x: 12 + (i % 5), y: 1, z: 11 + Math.floor(i / 5) * 2 } }))
   // particle effects, every second: a torch's flame and smoke, a campfire's smoke...
   world.set(19, 1, 11, world.first(['torch', { torch_facing_direction: 'top' }], 'torch'))
