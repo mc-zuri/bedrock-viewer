@@ -107,7 +107,7 @@ function drawnFaces (state, shape, faces, hasTexture) {
       return all(faces[2])
     case 'Rail':
       return all(CURVED_RAIL(p.rail_direction ?? 0) || p.rail_data_bit === '1' ? faces[1] : faces[0])
-    case 'RedDust': case 'Lilypad': case 'FlowerBed': case 'PaleMossCarpet':
+    case 'Lilypad': case 'FlowerBed': case 'PaleMossCarpet':
       return all(faces[1])
     case 'Door': {
       const half = p.upper_block_bit === '1' ? 'upper' : 'lower'

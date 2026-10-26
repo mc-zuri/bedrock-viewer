@@ -52,7 +52,8 @@ socket.on('scene', ({ center, radius, camera }) => {
 socket.on('blockInfo', info => {
   if (!info) { $('block').textContent = ''; return }
   const props = Object.entries(info.props).map(([k, v]) => `${k}=${v}`).join(', ')
-  $('block').textContent = `${info.pos.x} ${info.pos.y} ${info.pos.z}  ${info.name}${props ? `[${props}]` : ''}  state ${info.stateId}`
+  const entity = info.blockEntity ? '  ' + JSON.stringify(info.blockEntity) : ''
+  $('block').textContent = `${info.pos.x} ${info.pos.y} ${info.pos.z}  ${info.name}${props ? `[${props}]` : ''}  state ${info.stateId}${entity}`
 })
 
 // the version and scene pickers

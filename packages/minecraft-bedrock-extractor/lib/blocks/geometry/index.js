@@ -302,10 +302,35 @@ G.Rail = (state, ctx) => {
   return result(flat(), textures, { ao: false, y: dir === 1 ? 90 : 0 })
 }
 
-// redstone dust: the cross on the floor (Bedrock's lone dust: the states say nothing of its connections)
+// redstone dust, by its connection to each side (minecraft:connection_<side>: none, side, up), which no Bedrock state
+// has and prismarine-viewer works out from the neighbours: unconnected, the whole cross (its up texture); connected
+// along one axis only, the line (its side texture) across the block; else the cross's middle and its arm to each
+// connected side. Up each side it climbs, the line up the face of the block there.
 G.RedDust = (state, ctx) => {
-  const texture = ctx.faces[1]
-  return result([plane([0, 0.25, 0], [16, 0.25, 16], ['up', 'down'], 'dust', { tint: ctx.tintTexture(texture) })], { dust: texture, particle: texture }, { ao: false })
+  const [line, cross] = ctx.faces
+  const c = connections(state.props, 'minecraft:connection_') ?? {}
+  const on = side => (c[side] ?? 'none') !== 'none'
+  const textures = { cross, line, particle: cross }
+  const flat = ([x0, z0], [x1, z1], texture, extra) => result([plane([x0, 0.25, z0], [x1, 0.25, z1], ['up', 'down'], texture,
+    { uv: [x0, z0, x1, z1], tint: ctx.tintTexture(textures[texture]) })], textures, { ao: false, ...extra })
+  const alongZ = on('north') || on('south')
+  const alongX = on('east') || on('west')
+  const out = []
+  if (!alongZ && !alongX) out.push(flat([0, 0], [16, 16], 'cross'))
+  else if (!alongX) out.push(flat([0, 0], [16, 16], 'line', { y: 90 }))
+  else if (!alongZ) out.push(flat([0, 0], [16, 16], 'line'))
+  else {
+    out.push(flat([5, 5], [11, 11], 'cross'))
+    const arms = { north: [[5, 0], [11, 5]], east: [[11, 5], [16, 11]], south: [[5, 11], [11, 16]], west: [[0, 5], [5, 11]] }
+    for (const side of SIDES) if (on(side)) out.push(flat(...arms[side], 'cross'))
+  }
+  for (const side of SIDES) {
+    if (c[side] !== 'up') continue
+    const up = plane([0, 0, 0.25], [16, 16, 0.25], ['north', 'south'], 'line', { tint: ctx.tintTexture(line) })
+    for (const face of Object.values(up.faces)) face.rotation = 90
+    out.push(result([up], textures, { ao: false, y: ARM_Y[side] }))
+  }
+  return parts(out)
 }
 
 G.Lilypad = (state, ctx) => {
@@ -431,7 +456,18 @@ function fallback (state, ctx) {
   return result(crossElements('cross', ctx.tintTexture(texture)), { cross: texture, particle: texture }, { ao: false })
 }
 
+// the blocks a block entity renderer alone draws (their tessellator shape Invisible or BlockActorRendererOnly): as it
+// lays them out (./entity.js)
+const RENDERERS = [
+  [/^(standing|wall)_banner$/, entity.banner],
+  [/^decorated_pot$/, entity.decoratedPot],
+  [/copper_golem_statue$/, entity.statue]
+]
+
 function generate (state, ctx) {
+  const renderer = ctx.geometry && RENDERERS.find(([pattern]) => pattern.test(state.name))?.[1]
+  const drawn = renderer && renderer(state, ctx)
+  if (drawn) return drawn
   const generator = ctx.shape ? G[ctx.shape] : null
   return generator ? generator(state, ctx) : fallback(state, ctx)
 }

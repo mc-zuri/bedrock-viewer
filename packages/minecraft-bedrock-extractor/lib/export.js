@@ -21,7 +21,7 @@ function exportVersion ({ version, out, sources, cacheDir, mcDataModule, tables,
   const stack = openSource(plan.source, cacheDir, plan.supplement, plan.later)
   const store = new TextureStore(stack)
   const blocks = exportBlocks({ stack, mcData, store, tables, legacy, newest: mcDataModule('bedrock_' + newest) })
-  const items = exportItems({ version, stack, mcData, store, itemBlocks: blocks.itemBlocks, resolveBlock: blocks.resolveBlock, itemIcons: tables.itemIcons })
+  const items = exportItems({ version, stack, mcData, store, itemBlocks: blocks.itemBlocks, resolveBlock: blocks.resolveBlock, itemIcons: tables.itemIcons, reference: legacy?.reference })
 
   const dir = path.join(out, version)
   fs.rmSync(dir, { recursive: true, force: true })

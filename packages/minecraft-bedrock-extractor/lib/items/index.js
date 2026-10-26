@@ -38,11 +38,24 @@ function over (a, b) {
   return { ...a, rgba }
 }
 
+// the items drawn with another's icon where they have none: a photo with the camera that took it; the spawn egg of a
+// mob no client has (1.18's experimental firefly), with no colours to tint the egg in, as the egg and its spots
+const STAND_INS = { photo_item: 'camera' }
+const PLAIN_EGG = { path: 'textures/items/spawn_egg', overlay: 'textures/items/spawn_egg_overlay', tint: { base: 'ffffff', overlay: 'ffffff' } }
+
+// a legacy item (0.14 - 1.0), which minecraft-data names by its display name ('leather_cap', 'steak'): the Bedrock item
+// of that display name in the reference version ('leather_helmet'), where its own name has no icon
+const LEGACY_NAMES = { steak: 'cooked_beef' }
+function legacyItemNames (reference) {
+  const byDisplayName = new Map(reference.itemsArray.map(item => [item.displayName.toLowerCase(), item.name]))
+  return item => LEGACY_NAMES[item.name] ?? byDisplayName.get(item.displayName.toLowerCase())
+}
+
 const firstFrame = img => img.height > img.width && img.height % img.width === 0
   ? { width: img.width, height: img.width, rgba: img.rgba.subarray(0, img.width * img.width * 4) }
   : img
 
-function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock, itemIcons }) {
+function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock, itemIcons, reference = null }) {
   const resolve = itemResolver({ stack, blocks: itemBlocks, blockResolver: resolveBlock, packIcons: itemIconsFor(itemIcons, version) })
   const itemsTextures = []
   const textureContent = []
@@ -51,11 +64,19 @@ function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock,
     const stem = store.stemOf(path)
     return stem ? store.image(stem) : null
   }
-  for (const item of mcData.itemsArray) {
-    const name = item.name
+  const legacyName = reference ? legacyItemNames(reference) : () => null
+  const iconOf = name => {
     let icon = resolve(name)
     // an icon whose file the packs lack (the camera's): its block's, as for a block item
     if (icon && !imageOf(icon.path) && itemBlocks.get(name)) icon = { path: itemBlocks.get(name).north, colors: itemBlocks.get(name).colors }
+    return icon && imageOf(icon.path) ? icon : null
+  }
+  for (const item of mcData.itemsArray) {
+    const name = item.name
+    let icon = iconOf(name)
+    if (!icon && legacyName(item)) icon = iconOf(legacyName(item))
+    if (!icon && STAND_INS[name]) icon = iconOf(STAND_INS[name])
+    if (!icon && /_spawn_egg$/.test(name) && imageOf(PLAIN_EGG.path)) icon = PLAIN_EGG
     let texture = null
     let image = null
     if (icon) {

@@ -90,6 +90,15 @@ class SceneWorld {
     pos.l = layer
     column.setBlockStateId(pos, stateId)
   }
+
+  // the block entity of a block, of tags { name: [nbt type, value] } (1.16 on: the older columns keep none)
+  blockEntity (x, y, z, id, tags = {}) {
+    const column = this.column(Math.floor(x / 16), Math.floor(z / 16))
+    if (!column.addBlockEntity) return
+    const value = { id: { type: 'string', value: id }, x: { type: 'int', value: x }, y: { type: 'int', value: y }, z: { type: 'int', value: z } }
+    for (const [name, [type, v]] of Object.entries(tags)) value[name] = { type, value: v }
+    column.addBlockEntity({ type: 'compound', name: '', value })
+  }
 }
 
 // every block of the version in its default state, on a grass floor
@@ -275,37 +284,86 @@ function connected (world) {
   return { center: new Vec3(6, 1, 6), radius: 16 }
 }
 
-// Blocks the client draws with block entity renderers, in place: a bed of both halves, chests, heads on the floor and
-// on a wall, signs standing and on a wall. (A bed's colour, a sign's text, a head's turn are block entity data, not
-// sent here: they draw as their defaults.)
+// Blocks the client draws with block entity renderers, in place, with the block entities a server sends of them: beds
+// of five colours, chests, heads on the floor turned by their Rotation and on a wall, signs standing and on a wall,
+// hanging signs on a wall and under a beam, banners standing and on a wall, a decorated pot and copper golem statues.
+// (A sign's text, a banner's colours, a pot's sherds and a statue's pose are block entity data the assets do not draw.)
 function blockEntities (world) {
   const stone = world.first('stone')
-  for (let x = -1; x <= 12; x++) for (let z = -1; z <= 10; z++) world.set(x, 0, z, stone)
-  // a wall along z = 6, two high, to hang things on (its south face)
-  for (let x = 0; x <= 11; x++) for (let y = 1; y <= 3; y++) world.set(x, y, 6, world.first('planks', 'oak_planks'))
-  // a bed with its head to the north (direction 2): the foot at z = 3, the head at z = 2
-  world.set(1, 1, 3, world.state('bed', { direction: 2, head_piece_bit: 0 }))
-  world.set(1, 1, 2, world.state('bed', { direction: 2, head_piece_bit: 1 }))
+  const planks = world.first('planks', 'oak_planks')
+  for (let x = -1; x <= 17; x++) for (let z = -1; z <= 13; z++) world.set(x, 0, z, stone)
+  // a wall along z = 6, three high, to hang things on (its south face)
+  for (let x = 0; x <= 15; x++) for (let y = 1; y <= 3; y++) world.set(x, y, 6, planks)
+  // beds with their heads to the north (direction 2), the foot at z = 4, the head at z = 3: red (the default), white,
+  // blue, lime, black
+  ;[14, 0, 11, 5, 15].forEach((color, i) => {
+    for (const head of [0, 1]) {
+      world.set(i, 1, 4 - head, world.state('bed', { direction: 2, head_piece_bit: head }))
+      world.blockEntity(i, 1, 4 - head, 'Bed', { color: ['byte', color] })
+    }
+  })
   const facing = (name, side) => world.state(name, { 'minecraft:cardinal_direction': side, facing_direction: { north: 2, south: 3, west: 4, east: 5 }[side] })
-  world.set(3, 1, 3, facing('chest', 'south'))
-  world.set(4, 1, 3, facing('trapped_chest', 'south'))
-  world.set(5, 1, 3, facing('ender_chest', 'south'))
-  // heads: on the floor, and on the wall's south face (facing south, away from the wall)
-  const heads = ['skeleton_skull', 'wither_skeleton_skull', 'zombie_head', 'creeper_head', 'player_head', 'dragon_head', 'piglin_head'].filter(n => world.has(n))
-  if (heads.length) {
-    heads.forEach((name, i) => {
-      world.set(7 + i % 4, 1, 2 + Math.floor(i / 4), world.state(name, { facing_direction: 1 }))
-      world.set(4 + i, 2, 7, world.state(name, { facing_direction: 3 }))
-    })
-  } else {
-    world.set(7, 1, 2, world.state('skull', { facing_direction: 1 }))
-    world.set(4, 2, 7, world.state('skull', { facing_direction: 3 }))
-  }
+  world.set(6, 1, 4, facing('chest', 'south'))
+  world.set(7, 1, 4, facing('trapped_chest', 'south'))
+  world.set(8, 1, 4, facing('ender_chest', 'south'))
+  // heads: on the floor turned by their Rotation (degrees, 0 facing south), and on the wall's south face (facing
+  // south, away from the wall). Before 1.21.40 a head is one skull block of the type its block entity says.
+  const types = ['skeleton_skull', 'wither_skeleton_skull', 'zombie_head', 'player_head', 'creeper_head', 'dragon_head', 'piglin_head']
+  const flattened = world.has('skeleton_skull')
+  types.forEach((name, type) => {
+    if (flattened && !world.has(name)) return
+    const block = flattened ? name : 'skull'
+    const [x, z] = [10 + type % 4, 2 + Math.floor(type / 4) * 2]
+    world.set(x, 1, z, world.state(block, { facing_direction: 1 }))
+    world.blockEntity(x, 1, z, 'Skull', { SkullType: ['byte', type], Rotation: ['float', type * 45] })
+    world.set(5 + type, 2, 7, world.state(block, { facing_direction: 3 }))
+    world.blockEntity(5 + type, 2, 7, 'Skull', { SkullType: ['byte', type], Rotation: ['float', 0] })
+  })
   // signs standing in four directions, and on the wall's south face
   const standing = ['standing_sign', 'spruce_standing_sign', 'birch_standing_sign', 'darkoak_standing_sign']
   standing.forEach((name, i) => world.set(1 + i * 2, 1, 9, world.state(name, { ground_sign_direction: i * 2 })))
   ;['wall_sign', 'spruce_wall_sign', 'birch_wall_sign'].forEach((name, i) => world.set(i, 2, 7, world.state(name, { facing_direction: 3 })))
-  return { center: new Vec3(5, 2, 5), radius: 12, camera: { x: 6, y: 7, z: 15 } }
+  // banners standing in three directions, and on the wall's south face, hanging into the block below
+  ;[0, 2, 4].forEach((direction, i) => world.set(1 + i * 2, 1, 12, world.state('standing_banner', { ground_sign_direction: direction })))
+  ;[13, 15].forEach(x => world.set(x, 3, 7, world.state('wall_banner', { facing_direction: 3 })))
+  // hanging signs: on the end of the wall (their plank against it), and under a beam on chains in a V and straight
+  world.set(16, 2, 6, world.state('oak_hanging_sign', { hanging: 0, facing_direction: 3 }))
+  for (let x = 9; x <= 15; x++) world.set(x, 4, 10, planks)
+  world.set(10, 3, 10, world.state('oak_hanging_sign', { hanging: 1, attached_bit: 0, facing_direction: 3 }))
+  world.set(12, 3, 10, world.state('cherry_hanging_sign', { hanging: 1, attached_bit: 1, ground_sign_direction: 0 }))
+  world.set(14, 3, 10, world.state('bamboo_hanging_sign', { hanging: 1, attached_bit: 1, ground_sign_direction: 2 }))
+  // a decorated pot, and copper golem statues facing south
+  world.set(9, 1, 12, world.state('decorated_pot'))
+  ;['copper_golem_statue', 'exposed_copper_golem_statue', 'oxidized_copper_golem_statue'].forEach((name, i) =>
+    world.set(11 + i * 2, 1, 12, world.state(name, { 'minecraft:cardinal_direction': 'south' })))
+  return { center: new Vec3(8, 2, 7), radius: 14, camera: { x: 8, y: 9, z: 22 } }
+}
+
+// Redstone dust as its neighbours connect it: a line powered from a lever and fading along its length, a corner, a T
+// and a cross, a lone dust, dust stepping up a block and down from it, and dust running into a repeater's back and a
+// torch
+function redstone (world) {
+  const stone = world.first('stone')
+  for (let x = -1; x <= 14; x++) for (let z = -1; z <= 12; z++) world.set(x, 0, z, stone)
+  const dust = (x, y, z, signal = 0) => world.set(x, y, z, world.state('redstone_wire', { redstone_signal: signal }))
+  // a lever and a line of dust fading from 15 along x
+  world.set(0, 1, 1, world.first(['lever', { lever_direction: 'up_north_south', open_bit: 1 }], 'lever'))
+  for (let x = 1; x <= 12; x++) dust(x, 1, 1, 16 - x)
+  // a corner, a T and a cross
+  dust(1, 1, 4, 9); dust(2, 1, 4, 9); dust(1, 1, 5, 9)
+  dust(5, 1, 4, 9); dust(6, 1, 4, 9); dust(7, 1, 4, 9); dust(6, 1, 5, 9)
+  dust(10, 1, 4, 9); dust(9, 1, 5, 9); dust(10, 1, 5, 9); dust(11, 1, 5, 9); dust(10, 1, 6, 9)
+  // a lone dust
+  dust(13, 1, 4)
+  // up a block and down its far side
+  dust(1, 1, 8, 12); dust(2, 1, 8, 12); world.set(3, 1, 8, stone); dust(3, 2, 8, 12); dust(4, 1, 8, 12); dust(5, 1, 8, 12)
+  // into the back of a repeater (facing east: direction 3) and on to a lamp, and from a torch
+  dust(7, 1, 8, 15); dust(8, 1, 8, 15)
+  world.set(9, 1, 8, world.first(['powered_repeater', { direction: 3, 'minecraft:cardinal_direction': 'east' }], ['unpowered_repeater', { direction: 3, 'minecraft:cardinal_direction': 'east' }]))
+  world.set(10, 1, 8, world.first('lit_redstone_lamp', 'redstone_lamp'))
+  world.set(7, 1, 11, world.first(['redstone_torch', { torch_facing_direction: 'top' }], 'redstone_torch'))
+  dust(8, 1, 11, 15); dust(9, 1, 11, 14); dust(9, 1, 10, 13)
+  return { center: new Vec3(6, 1, 6), radius: 10, camera: { x: 6, y: 10, z: 16 } }
 }
 
 const SCENES = {
@@ -313,7 +371,8 @@ const SCENES = {
   gallery: { title: 'Every block', build: gallery },
   states: { title: 'Every state of (regex)', build: states },
   connected: { title: 'Fences, panes, walls, stairs', build: connected },
-  blockEntities: { title: 'Chests, beds, heads, signs', build: blockEntities },
+  blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
+  redstone: { title: 'Redstone dust', build: redstone },
   bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
 }
 

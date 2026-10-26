@@ -18,7 +18,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 
 | Package | Path | Source | Branch here | What it adds |
 |---|---|---|---|---|
-| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
@@ -62,9 +62,13 @@ pnpm prerender                                         # the viewer's atlases an
   by their connections, doors, rails, torches...);
 - **Fences, panes, walls, stairs**: a fence pen, glass panes, iron bars, a wall and a ring of stairs, their
   connections and corners from their states (1.26.50 on) or from their neighbours (before);
-- **Chests, beds, heads, signs**: the block entity blocks, in place: a bed of two halves, chests, heads on the floor
-  and on a wall, standing and wall signs;
+- **Block entities**: the blocks the client draws with block entity renderers, in place, with the block entities a
+  server sends: beds of five colours, chests, heads on the floor turned by their rotation and on a wall, standing,
+  wall and hanging signs, standing and wall banners, a decorated pot, copper golem statues;
+- **Redstone dust**: dust connected by its neighbours: lines, corners, a T, a cross, a lone dust, dust climbing a
+  block, into a repeater and from a torch;
 - **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the
   nether reactor, glowing obsidian, coloured and underwater torches, hard glass.
 
-Click a block to read its Bedrock name and state. `#camera=x,y,z&target=x,y,z` in the address sets the camera.
+Click a block to read its Bedrock name, state and block entity. `#camera=x,y,z&target=x,y,z` in the address sets
+the camera.

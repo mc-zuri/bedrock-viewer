@@ -47,7 +47,9 @@ function raycast (origin, direction, maxDistance = 256) {
     const state = world.mcData.blockStates?.[stateId]
     if (!state || state.name === 'air') continue
     const props = Object.fromEntries(Object.entries(state.states ?? {}).map(([k, v]) => [k, v.value]))
-    return { pos, name: state.name, props, stateId }
+    const tag = column.getBlockEntity?.(new Vec3(pos.x & 15, pos.y, pos.z & 15))
+    const blockEntity = tag && Object.fromEntries(Object.entries(tag.value).filter(([k]) => !/^[xyz]$/.test(k)).map(([k, v]) => [k, v.value]))
+    return { pos, name: state.name, props, stateId, blockEntity }
   }
   return null
 }

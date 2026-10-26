@@ -68,4 +68,52 @@ describe('geometry', () => {
     const m = generate({ name: 'water', props: { liquid_depth: '0' }, collision: [] }, ctx('Water'))
     assert.deepStrictEqual([m.elements.length, m.textures.particle, m.liquid], [0, 'top', true])
   })
+
+  const dust = (north, east, south, west) => generate({
+    name: 'redstone_wire',
+    props: { redstone_signal: '0', 'minecraft:connection_north': north, 'minecraft:connection_east': east, 'minecraft:connection_south': south, 'minecraft:connection_west': west },
+    collision: []
+  }, ctx('RedDust')).parts
+
+  it('draws redstone dust as its connections', () => {
+    const lone = dust('none', 'none', 'none', 'none')
+    assert.deepStrictEqual([lone.length, Object.values(lone[0].elements[0].faces)[0].texture, bounds(lone[0].elements)], [1, '#cross', [[0, 16], [0.25, 0.25], [0, 16]]])
+    const line = dust('side', 'none', 'none', 'none')
+    assert.deepStrictEqual([line.length, Object.values(line[0].elements[0].faces)[0].texture, line[0].y], [1, '#line', 90])
+    // a corner: the middle of the cross and its north and east arms
+    const corner = dust('side', 'side', 'none', 'none')
+    assert.deepStrictEqual(corner.map(p => bounds(p.elements).filter((_, i) => i !== 1)), [[[5, 11], [5, 11]], [[5, 11], [0, 5]], [[11, 16], [5, 11]]])
+    // up the block to the west: a line up its face, turned to the west
+    const up = dust('none', 'side', 'none', 'up')
+    assert.deepStrictEqual([up.length, up[up.length - 1].y, bounds(up[up.length - 1].elements)[1]], [2, 270, [0, 16]])
+  })
+
+  const sheets = {
+    'textures/entity/bed/white': 'bed_white',
+    'textures/entity/bed/red': 'bed_red',
+    'textures/entity/skulls/skeleton': 'skeleton',
+    'textures/entity/skulls/creeper': 'creeper'
+  }
+  const entityCtx = shape => ctx(shape, {
+    ref: p => sheets[p] ?? null,
+    geometry: id => ({
+      'geometry.bed': { sheet: [64, 64], bones: [{ cubes: [{ origin: [0, 0, 0], size: [16, 32, 6], uv: [0, 0] }] }] },
+      'geometry.mob_head': { sheet: [64, 32], bones: [{ name: 'head', cubes: [{ origin: [-4, 0, -4], size: [8, 8, 8], uv: [0, 0] }] }] }
+    })[id] ?? null,
+    clientEntity: () => null
+  })
+
+  it('draws a bed on the sheet of its block entity colour, red without one', () => {
+    const bed = props => generate({ name: 'bed', props: { direction: '0', head_piece_bit: '0', ...props }, collision: [] }, entityCtx('Bed'))
+    assert.strictEqual(bed({ 'block_entity.color': '0' }).textures.bed, 'bed_white')
+    assert.strictEqual(bed({}).textures.bed, 'bed_red')
+  })
+
+  it('turns a head on the floor by its block entity rotation, the skull block to its type', () => {
+    const head = props => generate({ name: 'skull', props: { facing_direction: '1', ...props }, collision: [] }, entityCtx('Skull'))
+    assert.deepStrictEqual([head({}).y, head({}).elements[0].rotation], [180, undefined])
+    const turned = head({ 'block_entity.Rotation': '-22.5', 'block_entity.SkullType': '4' })
+    assert.deepStrictEqual([turned.y, turned.elements[0].rotation.angle, turned.textures.head], [90, -67.5, 'creeper'])
+    assert.strictEqual(head({ 'block_entity.Rotation': '90' }).y, 270)
+  })
 })

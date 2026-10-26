@@ -12,7 +12,9 @@ Everything it writes comes from Bedrock itself — no Bedrock state is mapped to
   have none, the block ids and data values minecraft-data's legacy table (`bedrock/common/legacy.json`) names the
   Bedrock state of;
 - the geometry: each state's own Bedrock shapes (minecraft-data's `blockCollisionShapes.json` and
-  `blockSelectionShapes.json`) laid out as the client's tessellator draws that block (`data/block_render.json`);
+  `blockSelectionShapes.json`; for 0.14 - 1.0, which minecraft-data has no shapes of, those of the same Bedrock state
+  in the oldest version it has them of, 1.16.201) laid out as the client's tessellator draws that block
+  (`data/block_render.json`);
 - the textures: the Bedrock resource packs' `blocks.json` and `terrain_texture.json` (a list of textures indexed by
   the state's legacy data value, `data/data_layouts.json`), `item_texture.json`, `flipbook_textures.json` and the
   texture files.
@@ -54,7 +56,7 @@ version before it shares that one's folder (`"1.21.2": "1.21.0"`).
 | `blocks/*.png` | The Bedrock textures the models name, PNG (TGA converted), animated strips with the `.mcmeta` of their flipbook. A texture whose alpha is the mask the client tints (`grass_side`) is an opaque base and `<name>_overlay`. |
 | `blocks_textures.json` | `[{ name, blockState, model, texture }]`, each block's default state. |
 | `items_textures.json` | `[{ name, model, texture }]` of every minecraft-data item: `minecraft:items/<file>` or `minecraft:block/<file>`. |
-| `items/*.png` | Item icons: the item's definition, its `item_texture.json` entry, the icons the client names in code; a spawn egg in its mob's colours and a block item's carried texture in its fixed colours, baked. |
+| `items/*.png` | Item icons: the item's definition, its `item_texture.json` entry, the icons the client names in code; a spawn egg in its mob's colours and a block item's carried texture in its fixed colours, baked. A legacy item (0.14 - 1.0), which minecraft-data names by its display name (`leather_cap`), takes the icon of the item of that display name (`leather_helmet`); a photo, which has no icon of its own, the camera's. |
 | `texture_content.json` | `[{ name, texture }]`: each item's icon as a data URL. |
 | `meta.json` | The source, counts, and what was not resolved. |
 
@@ -72,11 +74,13 @@ The generator of a state is chosen by the tessellator shape the client reports f
   repeaters and comparators: as their tessellator lays them out;
 - fences: the client's fence tessellator boxes (`data/tessellator_shapes.json`); walls: post and arms from their
   states; panes and bars: a sheet to each connected side, across both axes when unconnected;
-- chests, beds, heads and signs, which the client draws with block entity renderers: beds with the packs'
-  `geometry.bed` laid flat across their two halves, heads with the geometry and texture the `minecraft:skull` client
-  entity gives their type, chests and signs as their renderers lay them out (the classic chest's base, lid and latch;
-  the sign's board at 2/3, on its stick or against its wall), all on their entity texture sheets (copied into
-  `blocks/` as `entity__chest__normal`, `entity__bed__red`...);
+- chests, beds, heads, signs, hanging signs, banners, decorated pots and copper golem statues, which the client draws
+  with block entity renderers: beds with the packs' `geometry.bed` laid flat across their two halves, heads with the
+  geometry and texture the `minecraft:skull` client entity gives their type, statues with `geometry.copper_golem`,
+  the others as their renderers lay them out (the classic chest's base, lid and latch; the sign's board at 2/3, on its
+  stick or against its wall; the hanging sign's board on its chains, under its plank on a wall; the banner's flag and
+  crossbar at 2/3, on its pole or hanging from a wall; the pot's body, neck and rim), all on their entity texture
+  sheets (copied into `blocks/` as `entity__chest__normal`, `entity__bed__red`...);
 - water and lava: the still texture, which prismarine-viewer draws as a liquid.
 
 A colour the client gives a block whatever the biome (a lily pad, a birch or spruce leaves block of before the
@@ -92,12 +96,34 @@ are keyed by those states in every version: a fence of an older version is writt
 and prismarine-viewer works them out from the neighbours where a block's state lacks them. Walls say their connections
 in every version.
 
+No version's states say a redstone dust's connections: its blockstate is keyed by `minecraft:connection_<side>`
+(`none`, `side`, `up`) in every version, a multipart of the parts the client draws: unconnected, the whole cross;
+connected along one axis, the line across the block; else the cross's middle and an arm to each connected side; a
+line up the face of each block it climbs.
+
+### Block entity data
+
+What a block entity holds is not in the state. A blockstate keyed by `block_entity.<tag>` is matched against the tags
+of the block's block entity, which prismarine-viewer gives a block as properties of those names:
+
+| Blocks | Keyed by | Drawn |
+|---|---|---|
+| beds | `block_entity.color` | the bed sheet of that colour (`textures/entity/bed/<colour>`) |
+| heads on the floor | `block_entity.Rotation` | turned in the 16 steps of 22.5 degrees, either way round |
+| the `skull` block (before 1.21.40) | `block_entity.SkullType` | the head of that type |
+
+The block entity's default comes first (a red bed, a skeleton skull facing south), the variant a block without a
+block entity takes, and after them the variants keyed by the state alone, which a value of no step takes.
+
 ### What is not drawn
 
-- Block entity data: a bed's colour, a sign's text, a head's turn on the floor, a double chest's other half, a
-  banner's patterns are not in the state; they draw as their defaults (a red bed, a blank sign, a head facing south,
-  a single chest). Banners and decorated pots draw as the boxes of their shapes; hanging signs as their box.
-- Redstone dust draws its cross whatever its neighbours.
+- A sign's text, a banner's colour and patterns (its flag draws the sheet's white: Bedrock's dye colours are in the
+  client's code, in no pack), a decorated pot's sherds, a statue's pose, a double chest's other half: block entity
+  data the client draws in code.
+- Education Edition's chalkboards: a board over up to 3 x 2 blocks that its block entity lays out from one of them.
+- `mysterious_frame` and `mysterious_frame_slot` (1.17.40 - 1.18.11): server blocks behind an experiment that no
+  client of those versions has textures or a `blocks.json` entry of; they draw as the missing tile, as the client
+  draws them.
 
 prismarine-viewer draws a Bedrock block's second layer (the water seagrass, kelp or a waterlogged stair stand in) as
 the liquid it is.

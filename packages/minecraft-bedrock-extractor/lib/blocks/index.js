@@ -126,13 +126,15 @@ function legacyStatesOf (mcData, legacyBlocks, reference, layouts) {
 }
 
 // The states the client completes from the neighbours where the states say nothing of them (before 1.26.50): a
-// fence's, pane's or bars' connection to each side, a stair's corner. Each such state is drawn with every value of
-// them, under the names 1.26.50's states give them (minecraft:connection_<side>, minecraft:corner), which
-// prismarine-viewer works out from the neighbours where a block's state lacks them; the corners of a stair take the
-// boxes the newest version's states of them have.
+// fence's, pane's or bars' connection to each side, a stair's corner; and a redstone dust's connections, which no
+// version's states have. Each such state is drawn with every value of them, under the names 1.26.50's states give
+// them (minecraft:connection_<side>, minecraft:corner; a dust's connections none, side or up), which prismarine-viewer
+// works out from the neighbours where a block's state lacks them; the corners of a stair take the boxes the newest
+// version's states of them have.
 const CONNECTED = new Set(['Fence', 'DoubleSideFence', 'MetalBars'])
 const SIDES = ['north', 'east', 'south', 'west']
 const CORNERS = ['none', 'inner_left', 'inner_right', 'outer_left', 'outer_right']
+const DUST = ['none', 'side', 'up']
 
 function withNeighbourStates (list, stairBoxes) {
   const out = []
@@ -144,6 +146,12 @@ function withNeighbourStates (list, stairBoxes) {
         SIDES.forEach((side, i) => { props['minecraft:connection_' + side] = mask & (1 << i) ? '1' : '0' })
         out.push({ ...s, props })
       }
+    } else if (shape === 'RedDust' && !('minecraft:connection_north' in s.props)) {
+      for (let n = 0; n < DUST.length ** SIDES.length; n++) {
+        const props = { ...s.props }
+        SIDES.forEach((side, i) => { props['minecraft:connection_' + side] = DUST[Math.floor(n / DUST.length ** i) % DUST.length] })
+        out.push({ ...s, props })
+      }
     } else if (shape === 'Stairs' && !('minecraft:corner' in s.props) && 'weirdo_direction' in s.props && stairBoxes.size) {
       for (const corner of CORNERS) {
         const boxes = stairBoxes.get(`${s.props.weirdo_direction},${s.props.upside_down_bit},${corner}`)
@@ -152,6 +160,32 @@ function withNeighbourStates (list, stairBoxes) {
     } else {
       out.push(s)
     }
+  }
+  return out
+}
+
+// The block entity data a block's model depends on, which no state has: a bed's colour (its block entity's color), a
+// head's rotation on the floor (Rotation, in degrees: the 16 steps of 22.5 either way round) and the legacy skull
+// block's type (SkullType). Each state of such a block is drawn with every value of them, under block_entity.<tag>,
+// which prismarine-viewer gives a block from its block entity; the block entity's default first (blockEntityDefault),
+// the one a block without a block entity takes.
+const ROTATIONS = [...Array(16).keys()].map(i => i * 22.5).concat([...Array(15).keys()].map(i => (i + 1) * 22.5 - 360))
+const BLOCK_ENTITY_DATA = [
+  [s => s.render?.shape === 'Bed', { 'block_entity.color': [14, ...Array(14).keys(), 15] }],
+  [s => s.render?.shape === 'Skull' && s.name === 'skull', { 'block_entity.SkullType': [...Array(7).keys()] }],
+  [s => s.render?.shape === 'Skull', { 'block_entity.Rotation': ROTATIONS }]
+]
+
+function withBlockEntityStates (list) {
+  const out = []
+  for (const s of list) {
+    let combos = [{}]
+    for (const [applies, values] of BLOCK_ENTITY_DATA) {
+      if (!applies(s)) continue
+      for (const [tag, options] of Object.entries(values)) combos = combos.flatMap(c => options.map(v => ({ ...c, [tag]: String(v) })))
+    }
+    if (combos.length === 1) { out.push(s); continue }
+    combos.forEach((c, i) => out.push({ ...s, props: { ...s.props, ...c }, blockEntityDefault: i === 0 }))
   }
   return out
 }
@@ -259,7 +293,7 @@ function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
     const entries = []
     let defaultModel = null
     let defaultTexture = null
-    for (const s of withNeighbourStates(list, stairBoxes)) {
+    for (const s of withBlockEntityStates(withNeighbourStates(list, stairBoxes))) {
       const shape = s.render?.shape ?? null
       report.shapes[shape ?? 'unknown'] = (report.shapes[shape ?? 'unknown'] ?? 0) + 1
       const faces = s.faces?.map(refOf) ?? null
@@ -313,14 +347,22 @@ function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
         if (m.y) part.y = m.y
         return part
       })
-      entries.push({ props: s.props, parts })
-      if (!parts.length) continue
+      entries.push({ props: s.props, parts, blockEntityDefault: s.blockEntityDefault })
+      if (!parts.length || s.blockEntityDefault === false) continue
       if (!defaultModel || s.index === mcData.blocksByName[name]?.defaultState) {
         defaultModel = parts[0].model
         defaultTexture = (model.parts?.[0] ?? model).textures.particle ?? faces[2]
       }
     }
     blocksStates[name] = buildBlockState(entries)
+    // after them, the states keyed without their block entity data: a block entity of a value they do not name (a
+    // head turned off its 16 steps) draws its default
+    const defaults = entries.filter(e => e.blockEntityDefault)
+    const variants = blocksStates[name].variants
+    if (defaults.length && variants) {
+      const plain = defaults.map(e => ({ props: Object.fromEntries(Object.entries(e.props).filter(([k]) => !k.startsWith('block_entity.'))), parts: e.parts }))
+      for (const [key, variant] of Object.entries(buildBlockState(plain).variants ?? {})) variants[key] ??= variant
+    }
     blocksTextures.push({
       name,
       blockState: name,
