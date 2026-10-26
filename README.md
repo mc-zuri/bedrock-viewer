@@ -22,6 +22,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
+| minecraft-jar-extractor | packages/minecraft-jar-extractor | PrismarineJS/minecraft-jar-extractor `master` (mc-zuri's fork merged) | `bedrock-viewer` | Java's chests and other block entities as block models |
 | minecraft-data | packages/minecraft-data | PrismarineJS/node-minecraft-data `master` | `bedrock-viewer` | node-minecraft-data#468 (`blockSelectionShapes`), the data below |
 | (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes`; a name per Bedrock 0.14 - 1.0 block (the Bedrock name of each id where two shared one: `flowing_water`, `wall_sign`, `lit_furnace`...) |
 | prismarine-chunk | packages/prismarine-chunk | mc-zuri/prismarine-chunk `bedrock` (PrismarineJS/prismarine-chunk#327) | `bedrock-legacy-viewer` | 0.14 - 1.0 columns by state id, with bounds and sections; 0.15 |
