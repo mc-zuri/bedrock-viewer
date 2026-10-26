@@ -23,7 +23,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
 | minecraft-data | packages/minecraft-data | PrismarineJS/node-minecraft-data `master` | `bedrock-viewer` | node-minecraft-data#468 (`blockSelectionShapes`), the data below |
-| (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes` |
+| (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes`; a name per Bedrock 0.14 - 1.0 block (the Bedrock name of each id where two shared one: `flowing_water`, `wall_sign`, `lit_furnace`...) |
 | prismarine-chunk | packages/prismarine-chunk | mc-zuri/prismarine-chunk `bedrock` (PrismarineJS/prismarine-chunk#327) | `bedrock-legacy-viewer` | 0.14 - 1.0 columns by state id, with bounds and sections; 0.15 |
 | prismarine-registry | packages/prismarine-registry | mc-zuri/prismarine-registry `bedrock` (PrismarineJS/prismarine-registry#57) | | |
 | prismarine-block | packages/prismarine-block | Pix3lPirat3/prismarine-block `fix/hashed-runtime-metadata` (PrismarineJS/prismarine-block#129) | `bedrock-legacy-properties` | 0.14 - 1.0 blocks' properties from minecraft-data's Bedrock legacy table |

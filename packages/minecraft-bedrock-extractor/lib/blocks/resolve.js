@@ -57,7 +57,12 @@ const HARDCODED = {
   underwater_tnt: { terrain: { down: 'tnt_bottom', up: 'tnt_top', north: 'tnt_side', south: 'tnt_side', west: 'tnt_side', east: 'tnt_side' } },
   piston_arm_collision: { path: 'textures/blocks/piston_inner' },
   sticky_piston_arm_collision: { path: 'textures/blocks/piston_inner' },
-  lever: { terrain: { down: 'lever', up: 'lever', north: 'lever', south: 'lever', west: 'lever', east: 'lever_particle' } }
+  lever: { terrain: { down: 'lever', up: 'lever', north: 'lever', south: 'lever', west: 'lever', east: 'lever_particle' } },
+  // a repeater's and a comparator's textures list the unpowered and the powered one: the block picks by its name
+  unpowered_repeater: { index: 0 },
+  powered_repeater: { index: 1 },
+  unpowered_comparator: { index: 0 },
+  powered_comparator: { index: 1 }
 }
 
 class TextureResolver {
@@ -100,6 +105,7 @@ class TextureResolver {
   // name + the state's data value (its permutation index) and properties -> { faces: {face: path}, source } or null
   resolve (name, data = 0, props = {}) {
     const hard = HARDCODED[name]
+    data = hard?.index ?? data
     if (hard?.terrainKeys) {
       const path = terrainPath(this.terrain[hard.terrainKeys[+props[hard.by]] ?? hard.terrainKeys[0]], 0)
       if (path) return { faces: Object.fromEntries(FACES.map(f => [f, path])), source: 'hardcoded' }

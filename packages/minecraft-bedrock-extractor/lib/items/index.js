@@ -44,11 +44,12 @@ const STAND_INS = { photo_item: 'camera' }
 const PLAIN_EGG = { path: 'textures/items/spawn_egg', overlay: 'textures/items/spawn_egg_overlay', tint: { base: 'ffffff', overlay: 'ffffff' } }
 
 // a legacy item (0.14 - 1.0), which minecraft-data names by its display name ('leather_cap', 'steak'): the Bedrock item
-// of that display name in the reference version ('leather_helmet'), where its own name has no icon
-const LEGACY_NAMES = { steak: 'cooked_beef' }
-function legacyItemNames (reference) {
+// of that display name in the reference version ('leather_helmet'), else the block its id is ('update_game_block':
+// info_update), where its own name has no icon
+const LEGACY_NAMES = { steak: 'cooked_beef', redstone_comparator: 'comparator' }
+function legacyItemNames (mcData, reference) {
   const byDisplayName = new Map(reference.itemsArray.map(item => [item.displayName.toLowerCase(), item.name]))
-  return item => LEGACY_NAMES[item.name] ?? byDisplayName.get(item.displayName.toLowerCase())
+  return item => [LEGACY_NAMES[item.name], byDisplayName.get(item.displayName.toLowerCase()), mcData.blocks[item.id]?.name].filter(Boolean)
 }
 
 const firstFrame = img => img.height > img.width && img.height % img.width === 0
@@ -64,7 +65,7 @@ function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock,
     const stem = store.stemOf(path)
     return stem ? store.image(stem) : null
   }
-  const legacyName = reference ? legacyItemNames(reference) : () => null
+  const legacyNames = reference ? legacyItemNames(mcData, reference) : () => []
   const iconOf = name => {
     let icon = resolve(name)
     // an icon whose file the packs lack (the camera's): its block's, as for a block item
@@ -74,7 +75,10 @@ function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock,
   for (const item of mcData.itemsArray) {
     const name = item.name
     let icon = iconOf(name)
-    if (!icon && legacyName(item)) icon = iconOf(legacyName(item))
+    for (const other of icon ? [] : legacyNames(item)) {
+      icon = iconOf(other)
+      if (icon) break
+    }
     if (!icon && STAND_INS[name]) icon = iconOf(STAND_INS[name])
     if (!icon && /_spawn_egg$/.test(name) && imageOf(PLAIN_EGG.path)) icon = PLAIN_EGG
     let texture = null
