@@ -11,6 +11,7 @@ const { setupRoutes } = require('prismarine-viewer/lib/common')
 const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 const mcData = require('minecraft-data')
 const { buildScene, SCENES } = require('./scenes')
+const { Director } = require('./story')
 const { PNG } = require('pngjs')
 const { encodeSkin } = require('prismarine-viewer/viewer/lib/bedrock/entity/skinData')
 
@@ -113,9 +114,9 @@ function skinOf (version) {
 }
 
 io.on('connection', socket => {
-  const { version, world, center, radius, camera, entities, particles, toggles } = current
+  const { version, world, center, radius, camera, entities, particles, toggles, story, surface } = current
   socket.emit('version', version)
-  socket.emit('scene', { center, radius, camera })
+  socket.emit('scene', { center, radius, camera, story: !!story })
   for (const column of world.columns.values()) {
     socket.emit('loadChunk', { x: column.x * 16, z: column.z * 16, chunk: column.toJson() })
   }
@@ -126,11 +127,15 @@ io.on('connection', socket => {
     if (entity.name !== 'item' && !models['minecraft:' + entity.name]) continue
     socket.emit('entity', pixels ? { ...entity, bedrockSkin: skinOf(version) } : entity)
   }
+  // the scene's story, told to this page from its start (its actors, blocks, camera and captions)
+  const director = story && new Director({ world, models, surface, emit: (event, data) => socket.emit(event, data) })
+  director?.play(story)
   let tick = 0
   // what is sent at a later tick (a piston's second step): tick -> [() => ...]
   const later = new Map()
   const timer = setInterval(() => {
     tick++
+    director?.tick()
     for (const send of later.get(tick) ?? []) send()
     later.delete(tick)
     for (const entity of entities) {
@@ -162,7 +167,12 @@ io.on('connection', socket => {
       }
     }
   }, 50)
-  socket.on('disconnect', () => clearInterval(timer))
+  socket.on('disconnect', () => {
+    clearInterval(timer)
+    director?.stop()
+  })
+  // the page's Next: the story on to its next chapter
+  socket.on('skip', () => director?.skip())
   socket.on('mouseClick', ({ origin, direction, button }) => {
     if (button === 0) socket.emit('blockInfo', raycast(origin, direction))
   })

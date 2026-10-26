@@ -1,5 +1,6 @@
 // The example's page: prismarine-viewer's Viewer, an orbit camera framed on the scene, and the Bedrock state of the
-// block clicked (the server reads it from the scene's chunks).
+// block clicked (the server reads it from the scene's chunks). A story scene moves the camera itself and captions
+// its chapters; the user can take the camera over and give it back.
 /* global THREE, fetch, location, URLSearchParams */
 global.THREE = require('three')
 require('three/examples/js/controls/OrbitControls')
@@ -20,8 +21,38 @@ window.viewer = viewer
 const controls = new THREE.OrbitControls(viewer.camera, renderer.domElement)
 controls.screenSpacePanning = true
 
+// the story's camera: the latest shot ({ pos, target, smooth, cut }), followed until the user moves the camera
+let story = false
+let following = false
+let grabbed = false
+let shot = null
+let cut = false
+
+function follow (on) {
+  following = on
+  cut = false
+  $('follow').hidden = on || !story
+}
+$('follow').onclick = () => follow(true)
+
+// a press alone (as when picking a block) holds the story's camera still; moving the camera takes it over
+controls.addEventListener('start', () => { grabbed = true })
+controls.addEventListener('change', () => { if (grabbed && following) follow(false) })
+controls.addEventListener('end', () => { grabbed = false })
+
+// ease the camera and what it looks at toward the shot, by 1 - e^(-smooth * dt); a cut jumps there
+function toShot (dt) {
+  const k = cut ? 1 : 1 - Math.exp(-shot.smooth * dt)
+  viewer.camera.position.lerp(shot.pos, k)
+  controls.target.lerp(shot.target, k)
+  cut = false
+}
+
+const clock = new THREE.Clock()
 function animate () {
   window.requestAnimationFrame(animate)
+  const dt = clock.getDelta()
+  if (following && !grabbed && shot) toShot(dt)
   controls.update()
   viewer.update()
   renderer.render(viewer.scene, viewer.camera)
@@ -39,8 +70,9 @@ socket.on('version', version => {
 })
 
 // look at the scene from the south-east, far enough to see all of it; or from where the page's hash says:
-// #camera=x,y,z&target=x,y,z
-socket.on('scene', ({ center, radius, camera }) => {
+// #camera=x,y,z&target=x,y,z. A story scene's camera follows the story, unless the hash fixes the view.
+socket.on('scene', scene => {
+  const { center, radius, camera } = scene
   const hash = new URLSearchParams(window.location.hash.slice(1))
   const vec = s => { const [x, y, z] = s.split(',').map(Number); return { x, y, z } }
   const target = hash.get('target') ? vec(hash.get('target')) : center
@@ -49,7 +81,40 @@ socket.on('scene', ({ center, radius, camera }) => {
   const from = hash.get('camera') ? vec(hash.get('camera')) : camera ?? { x: center.x + d * 0.5, y: center.y + d * 0.8, z: center.z + d }
   viewer.camera.position.set(from.x, from.y, from.z)
   controls.update()
+  story = !!scene.story
+  follow(story && !hash.get('camera'))
+  $('next').hidden = !story
 })
+
+// on to the story's next part (the server plays it on to there unseen, and sends the world as it is then); the camera
+// follows the story again
+$('next').onclick = () => {
+  socket.emit('skip')
+  follow(true)
+}
+
+// where the story wants the camera; kept while the user has the camera, to ease back from wherever they leave it
+socket.on('camera', s => {
+  shot = s
+  if (s.cut && following) cut = true
+})
+
+// the story's chapter title and text (null: none); each new one fades in
+socket.on('caption', caption => {
+  const panel = $('caption')
+  panel.classList.remove('shown')
+  panel.hidden = !caption
+  if (!caption) return
+  $('captionTitle').textContent = caption.title ?? ''
+  $('captionText').textContent = caption.text ?? ''
+  // (a layout at opacity 0, so the fade runs from there)
+  panel.getBoundingClientRect()
+  panel.classList.add('shown')
+})
+
+// the sky's colour: a dimension's (the Nether's, the End's), or null for the viewer's own
+const sky = viewer.scene.background.clone()
+socket.on('sky', ({ color }) => viewer.scene.background.set(color ?? sky))
 
 socket.on('blockInfo', info => {
   if (!info) { $('block').textContent = ''; return }

@@ -18,7 +18,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 
 | Package | Path | Source | Branch here | What it adds |
 |---|---|---|---|---|
-| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation, a piston's arm); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation, a piston's arm); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; Bedrock biomes' grass and leaves by the Java biomes they are, their water by their own colour; a gutter round each atlas tile, so that no block's edge takes its neighbour's texture; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | bedrock-assets-extractor | packages/bedrock-assets-extractor | mc-zuri/bedrock-assets-extractor `main` | | the extractor |
@@ -57,6 +57,15 @@ pnpm prerender                                         # the viewer's atlases an
 
 [example/](example) serves a page with every Bedrock version minecraft-data knows and a few scenes drawn with it:
 
+- **Showcase: The Heart of Oakvale**: a world of nine biomes round a village (snow, a dark forest, mountains with a
+  waterfall and a ruined portal, a cherry grove, a jungle, a desert temple, badlands, a swamp with a witch's hut, a
+  lake) and the Nether and the End, each with its own life, and a story told in it as a server would show it: pillagers
+  raid the village for the Heart in its shulker box; Steve follows them through the dark forest, the snow and a nether
+  portal to a nether fortress, on into the End to kill the Ender Dragon, and home on an elytra and a horse. A camera
+  follows the story (drag to look round yourself; *Follow the story* to go back; *Next* to skip to the next part), with
+  a caption for each part
+  ([example/story.js](example/story.js) plays it: actors that walk, fight, die and ride, arrows and fireballs, blocks
+  and lids, particles, the camera kept clear of what is in its way);
 - **Landscape**: hills, a lake with seagrass and kelp standing in its water (Bedrock's second block layer), flowing
   water, waterlogged stairs, trees, grass and flowers, in the plains biome's colours;
 - **Every block**: every block of the version in its default state;
@@ -67,6 +76,9 @@ pnpm prerender                                         # the viewer's atlases an
 - **Block entities**: the blocks the client draws with block entity renderers, in place, with the block entities a
   server sends: beds of five colours, chests, heads on the floor turned by their rotation and on a wall, standing,
   wall and hanging signs, standing and wall banners, a decorated pot, copper golem statues;
+- **Chests, shulker boxes and doors**: chests single and double, doors, a barrel and shulker boxes in colours facing
+  each way (their block entity's facing), opened and shut every few seconds as a server does (a shulker box's lid
+  rising and turning);
 - **Entities, armor, held and dropped items, particles**: the version's mobs and flyers animated as the game animates
   them (prismarine-viewer's Bedrock entity runtime), players in armor holding items (one in a skin a server would
   send), a zombie walking with its sword and armor, dropped items, particle effects;

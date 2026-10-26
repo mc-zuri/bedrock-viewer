@@ -2,6 +2,7 @@
 // version's own block states (minecraft-data).
 const { Vec3 } = require('vec3')
 const { getVersion } = require('prismarine-viewer/viewer/lib/version')
+const { showcase } = require('./showcase')
 
 class SceneWorld {
   constructor (version) {
@@ -31,6 +32,9 @@ class SceneWorld {
       }
     }
     this.plains = this.mcData.biomesByName?.plains?.id ?? 1
+    // the biome at (x, z), up to a height (a scene with biomes of its own sets these before its first block)
+    this.biomeAt = () => this.plains
+    this.biomeTop = 40
   }
 
   has (name) {
@@ -67,14 +71,17 @@ class SceneWorld {
       // (0.14 - 1.0 columns keep no coordinates of their own)
       column.x = cx
       column.z = cz
-      // plains, so that grass and leaves take its colours (a biome per column before 1.18)
+      // plains (or the scene's biomes), so that grass, leaves and water take its colours (a biome per column before 1.18)
       const p = new Vec3(0, 0, 0)
       if (column.setBiomeId) {
-        for (p.y = -1; p.y < 40; p.y++) {
-          for (p.x = 0; p.x < 16; p.x++) for (p.z = 0; p.z < 16; p.z++) column.setBiomeId(p, this.plains)
+        for (p.x = 0; p.x < 16; p.x++) {
+          for (p.z = 0; p.z < 16; p.z++) {
+            const biome = this.biomeAt(cx * 16 + p.x, cz * 16 + p.z)
+            for (p.y = -1; p.y < this.biomeTop; p.y++) column.setBiomeId(p, biome)
+          }
         }
       } else if (column.setBiome) {
-        for (p.x = 0; p.x < 16; p.x++) for (p.z = 0; p.z < 16; p.z++) column.setBiome(p, this.plains)
+        for (p.x = 0; p.x < 16; p.x++) for (p.z = 0; p.z < 16; p.z++) column.setBiome(p, this.biomeAt(cx * 16 + p.x, cz * 16 + p.z))
       }
       this.columns.set(key, column)
     }
@@ -347,11 +354,20 @@ function blockEntities (world) {
   return { center: new Vec3(8, 2, 7), radius: 14, camera: { x: 8, y: 9, z: 22 } }
 }
 
+// a shulker box of a colour (undyed, white... light_gray): from 1.20.80 a block a colour, before one block of a color
+// state (light gray silver) and the undyed one; null before shulker boxes (1.1)
+function shulkerBox (world, color) {
+  if (world.has(color + '_shulker_box')) return world.state(color + '_shulker_box')
+  if (color === 'undyed' || !world.has('shulker_box')) return null
+  return world.state('shulker_box', { color: color === 'light_gray' ? 'silver' : color })
+}
+
 // Chests and doors as a server sends them and changes them, every few seconds (toggles: the server opens and shuts
 // them): chests single and double (a pair: each half's block entity names the other, pairx and pairz) in each
 // direction, a trapped, an ender and a copper chest, their lids opened and shut by block events; doors in each
 // direction with each hinge, as the game keeps them (the lower half holds the direction and openness, the upper half
-// the hinge), opened and shut by block updates of their lower halves; and a barrel, opened and shut
+// the hinge), opened and shut by block updates of their lower halves; a barrel, opened and shut; and shulker boxes in
+// colours facing each way, their lids opened and shut by block events
 function containers (world) {
   const stone = world.first('stone')
   for (let x = -1; x <= 22; x++) for (let z = -1; z <= 14; z++) world.set(x, 0, z, stone)
@@ -401,7 +417,17 @@ function containers (world) {
     world.set(18, 1, 8, barrel(0))
     blocks.push({ pos: { x: 18, y: 1, z: 8 }, states: [barrel(0), barrel(1)] })
   }
-  return { center: new Vec3(10, 1, 5), radius: 14, camera: { x: 10, y: 8, z: 18 }, toggles: { every: 3, lids, blocks } }
+  // shulker boxes, their lids opened and shut by block events as a chest's: undyed and in colours, facing up and to
+  // each side (their ShulkerBox block entity's facing: 2 north, 3 south, 4 west, 5 east)
+  ;[['undyed', 1], ['white', 1], ['purple', 1], ['red', 2], ['blue', 3], ['lime', 4], ['yellow', 5], ['light_gray', 1], ['black', 1]].forEach(([color, facing], i) => {
+    const box = shulkerBox(world, color)
+    if (box === null) return
+    const pos = { x: 1 + i * 2, y: 1, z: 12 }
+    world.set(pos.x, pos.y, pos.z, box)
+    world.blockEntity(pos.x, pos.y, pos.z, 'ShulkerBox', { facing: ['byte', facing] })
+    lids.push(pos)
+  })
+  return { center: new Vec3(10, 1, 6), radius: 15, camera: { x: 10, y: 9, z: 22 }, toggles: { every: 3, lids, blocks } }
 }
 
 // Redstone dust as its neighbours connect it: a line powered from a lever and fading along its length, a corner, a T
@@ -504,21 +530,23 @@ function entityScene (world) {
 }
 
 const SCENES = {
+  showcase: { title: 'Showcase: The Heart of Oakvale (a story across nine biomes)', build: showcase },
   landscape: { title: 'Landscape', build: landscape },
   gallery: { title: 'Every block', build: gallery },
   states: { title: 'Every state of (regex)', build: states },
   connected: { title: 'Fences, panes, walls, stairs', build: connected },
   blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
-  containers: { title: 'Chests and doors, opening and shutting', build: containers },
+  containers: { title: 'Chests, shulker boxes and doors, opening and shutting', build: containers },
   redstone: { title: 'Redstone dust and pistons', build: redstone },
   entities: { title: 'Entities, armor, held and dropped items, particles', build: entityScene },
   bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
 }
 
+// (a scene's story: an async function of a Director, ./story.js, and surface(x, z), where its actors start)
 function buildScene (version, scene, filter) {
   const world = new SceneWorld(version)
-  const { center, radius, camera, entities = [], particles = [], toggles = null } = SCENES[scene].build(world, filter)
-  return { world, center, radius, camera, entities, particles, toggles }
+  const { center, radius, camera, entities = [], particles = [], toggles = null, story = null, surface } = SCENES[scene].build(world, filter)
+  return { world, center, radius, camera, entities, particles, toggles, story, surface }
 }
 
 module.exports = { buildScene, SCENES: Object.entries(SCENES).map(([name, s]) => ({ name, title: s.title })), SceneWorld }
