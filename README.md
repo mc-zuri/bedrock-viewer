@@ -65,6 +65,8 @@ pnpm prerender                                         # the viewer's atlases an
 - **Block entities**: the blocks the client draws with block entity renderers, in place, with the block entities a
   server sends: beds of five colours, chests, heads on the floor turned by their rotation and on a wall, standing,
   wall and hanging signs, standing and wall banners, a decorated pot, copper golem statues;
+- **Entities, armor, held and dropped items, particles**: the version's mobs, players in armor holding items (one in
+  a skin sent as its pixels), a zombie walking with its sword and armor, dropped items, particle effects;
 - **Redstone dust**: dust connected by its neighbours: lines, corners, a T, a cross, a lone dust, dust climbing a
   block, into a repeater and from a torch;
 - **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the

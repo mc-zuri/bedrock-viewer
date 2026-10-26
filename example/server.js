@@ -11,6 +11,7 @@ const { setupRoutes } = require('prismarine-viewer/lib/common')
 const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 const mcData = require('minecraft-data')
 const { buildScene, SCENES } = require('./scenes')
+const { PNG } = require('pngjs')
 
 const port = +(process.env.PORT ?? 3000)
 const viewerPublic = path.join(path.dirname(require.resolve('prismarine-viewer/package.json')), 'public')
@@ -79,13 +80,61 @@ setupRoutes(app)
 const http = require('http').createServer(app)
 const io = require('socket.io')(http)
 
+// the entity models of a version's assets (entities.json), or {}
+function entityModels (version) {
+  const assets = versions.find(v => v.version === version)?.assets
+  try {
+    return JSON.parse(fs.readFileSync(path.join(viewerPublic, 'textures', assets, 'entities.json'), 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+// a player skin as a Bedrock server sends it, its pixels (RGBA, base64): the version's own default skin, its colours
+// turned round (red to green, green to blue, blue to red) to tell it from the default
+function skinPixels (version) {
+  const assets = versions.find(v => v.version === version)?.assets
+  try {
+    const models = entityModels(version)
+    const file = path.join(viewerPublic, models.player.textures.default.replace('textures', 'textures/' + assets) + '.png')
+    const png = PNG.sync.read(fs.readFileSync(file))
+    for (let i = 0; i < png.data.length; i += 4) [png.data[i], png.data[i + 1], png.data[i + 2]] = [png.data[i + 2], png.data[i], png.data[i + 1]]
+    return { width: png.width, height: png.height, data: png.data.toString('base64') }
+  } catch {
+    return undefined
+  }
+}
+
 io.on('connection', socket => {
-  const { version, world, center, radius, camera } = current
+  const { version, world, center, radius, camera, entities, particles } = current
   socket.emit('version', version)
   socket.emit('scene', { center, radius, camera })
   for (const column of world.columns.values()) {
     socket.emit('loadChunk', { x: column.x * 16, z: column.z * 16, chunk: column.toJson() })
   }
+  // the scene's entities the version has models of (and dropped items); one walking to and fro; its particle effects,
+  // every second (or every few)
+  const models = entityModels(version)
+  for (const { walk, skinPixels: pixels, ...entity } of entities) {
+    if (entity.name !== 'item' && !models[entity.name]) continue
+    socket.emit('entity', pixels ? { ...entity, skin: skinPixels(version) } : entity)
+  }
+  let tick = 0
+  const timer = setInterval(() => {
+    tick++
+    for (const entity of entities) {
+      if (!entity.walk) continue
+      const { from, to } = entity.walk
+      const span = (to - from) * 20
+      const t = tick % (span * 2)
+      const x = from + (t < span ? t : span * 2 - t) / 20
+      socket.emit('entity', { id: entity.id, pos: { ...entity.pos, x }, yaw: t < span ? -Math.PI / 2 : Math.PI / 2 })
+    }
+    if (tick % 20 === 0) {
+      for (const { every = 1, ...particle } of particles) if ((tick / 20) % every === 0) socket.emit('particle', particle)
+    }
+  }, 50)
+  socket.on('disconnect', () => clearInterval(timer))
   socket.on('mouseClick', ({ origin, direction, button }) => {
     if (button === 0) socket.emit('blockInfo', raycast(origin, direction))
   })

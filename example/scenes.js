@@ -366,6 +366,50 @@ function redstone (world) {
   return { center: new Vec3(6, 1, 6), radius: 10, camera: { x: 6, y: 10, z: 16 } }
 }
 
+// Entities, drawn from the version's own entity models: a crowd of mobs facing south; a zombie in iron armor holding a
+// sword walking to and fro; players in armor holding items, one in a skin sent as its pixels (as a Bedrock server sends
+// a player's); items dropped on the ground; and particle effects (a Bedrock version's own) above them.
+function entityScene (world) {
+  const grass = world.first('grass_block', 'grass')
+  for (let x = -2; x <= 24; x++) for (let z = -2; z <= 16; z++) world.set(x, 0, z, grass)
+  const size = name => world.mcData.entitiesByName?.[name] ?? { width: 0.6, height: 1.8 }
+  const entities = []
+  const add = e => entities.push({ id: entities.length + 1, yaw: Math.PI, width: size(e.name).width, height: size(e.name).height, ...e })
+  const mobs = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman', 'pig', 'cow', 'sheep', 'chicken', 'wolf', 'horse',
+    'villager_v2', 'iron_golem', 'slime', 'cat', 'fox', 'bee', 'axolotl', 'piglin', 'pillager', 'warden', 'witch']
+  mobs.forEach((name, i) => add({ name, pos: { x: 1 + (i % 11) * 2, y: 1, z: 2 + Math.floor(i / 11) * 3 } }))
+  const skeleton = entities.find(e => e.name === 'skeleton')
+  skeleton.equipment = ['bow', null, null, null, null, 'golden_helmet']
+  // a zombie walking along x, to and fro, its armor and sword moving with its limbs
+  add({ name: 'zombie', pos: { x: 4, y: 1, z: 8 }, walk: { from: 4, to: 14 }, equipment: ['iron_sword', null, 'iron_boots', 'iron_leggings', 'iron_chestplate', 'iron_helmet'] })
+  // players: Steve in diamond, Alex (slim) in netherite with a bow, and one in a skin of pixels
+  add({ name: 'player', username: 'Steve', pos: { x: 3, y: 1, z: 11 }, equipment: ['diamond_sword', 'shield', 'diamond_boots', 'diamond_leggings', 'diamond_chestplate', 'diamond_helmet'] })
+  add({ name: 'player', username: 'Alex', skinModel: 'slim', pos: { x: 6, y: 1, z: 11 }, equipment: ['bow', null, 'netherite_boots', 'netherite_leggings', 'netherite_chestplate', 'netherite_helmet'] })
+  add({ name: 'player', username: 'Pixels', skinPixels: true, pos: { x: 9, y: 1, z: 11 }, equipment: ['golden_axe', null, 'leather_boots', null, 'chainmail_chestplate', 'turtle_helmet'] })
+  // items on the ground
+  const dropped = ['diamond', 'apple', 'iron_sword', 'bow', 'redstone', 'egg', 'cake', 'grass_block', 'oak_log', 'torch']
+  dropped.forEach((itemName, i) => add({ name: 'item', itemName, pos: { x: 12 + (i % 5), y: 1, z: 11 + Math.floor(i / 5) * 2 } }))
+  // particle effects, every second: a torch's flame and smoke, a campfire's smoke...
+  world.set(19, 1, 11, world.first(['torch', { torch_facing_direction: 'top' }], 'torch'))
+  world.set(21, 1, 11, world.first('campfire'))
+  const at = (x, z, y = 2.5) => ({ x: x + 0.5, y, z: z + 0.5 })
+  const particles = [
+    { name: 'minecraft:heart_particle', pos: at(11, 2), count: 3 },
+    { name: 'minecraft:villager_happy', pos: at(1, 5), count: 5 },
+    { name: 'minecraft:villager_angry', pos: at(17, 5), count: 1 },
+    { name: 'minecraft:note_particle', pos: at(13, 2), count: 1 },
+    { name: 'minecraft:basic_flame_particle', pos: at(19, 11, 1.72), count: 2 },
+    { name: 'minecraft:basic_smoke_particle', pos: at(19, 11, 1.85), count: 2 },
+    { name: 'minecraft:campfire_smoke_particle', pos: at(21, 11, 1.4), count: 2 },
+    { name: 'minecraft:critical_hit_emitter', pos: at(4, 8, 1.5) },
+    { name: 'minecraft:redstone_wire_dust_particle', pos: at(19, 13, 1.1), count: 5 },
+    { name: 'minecraft:portal_directional', pos: at(21, 13, 1.5), count: 10 },
+    { name: 'minecraft:totem_particle', pos: at(23, 8, 2) },
+    { name: 'minecraft:huge_explosion_emitter', pos: at(22, 2, 4), every: 4 }
+  ]
+  return { center: new Vec3(11, 1, 7), radius: 14, camera: { x: 11, y: 8, z: 22 }, entities, particles }
+}
+
 const SCENES = {
   landscape: { title: 'Landscape', build: landscape },
   gallery: { title: 'Every block', build: gallery },
@@ -373,13 +417,14 @@ const SCENES = {
   connected: { title: 'Fences, panes, walls, stairs', build: connected },
   blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
   redstone: { title: 'Redstone dust', build: redstone },
+  entities: { title: 'Entities, armor, held and dropped items, particles', build: entityScene },
   bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
 }
 
 function buildScene (version, scene, filter) {
   const world = new SceneWorld(version)
-  const { center, radius, camera } = SCENES[scene].build(world, filter)
-  return { world, center, radius, camera }
+  const { center, radius, camera, entities = [], particles = [] } = SCENES[scene].build(world, filter)
+  return { world, center, radius, camera, entities, particles }
 }
 
 module.exports = { buildScene, SCENES: Object.entries(SCENES).map(([name, s]) => ({ name, title: s.title })), SceneWorld }

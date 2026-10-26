@@ -15,6 +15,8 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
 
 const viewer = new Viewer(renderer)
+// (for a look from the browser's console)
+window.viewer = viewer
 const controls = new THREE.OrbitControls(viewer.camera, renderer.domElement)
 controls.screenSpacePanning = true
 
