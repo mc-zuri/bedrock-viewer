@@ -12,7 +12,7 @@ const { makeRenderOf } = require('./render')
 const { canonicalFaces, doorWood, drawnFaces } = require('./faces')
 const { propsOf, stateKey } = require('./states')
 const { generate } = require('./geometry')
-const { geometryIndex } = require('./geometry/entity')
+const { geometryIndex, LID_STEPS } = require('./geometry/entity')
 const { buildBlockState } = require('./blockstate')
 const { sample, redstoneTable, stemTable, hexColor, COLORMAPS } = require('./tints')
 const { overlayTextures, constantTints } = require('../image/overlay')
@@ -120,6 +120,9 @@ function legacyStatesOf (mcData, legacyBlocks, reference, layouts) {
       const props = Object.fromEntries((m?.[2] ? m[2].split(',') : []).map(p => p.split('=')))
       const same = known.get(name + '[' + stateKey(props) + ']')
       states.push({ name, blockName: block.name, props, data, index: (block.id << 4) | data, collision: same?.collision ?? null, outline: same?.outline ?? null })
+      // (a door's hinge is a bit of its upper half's data the table reads as its direction: each half is drawn with
+      // either hinge, which prismarine-viewer picks from the upper half)
+      if (/door$/.test(name) && props.door_hinge_bit === '0') states.push({ ...states[states.length - 1], props: { ...props, door_hinge_bit: '1' } })
     }
   }
   return states
@@ -166,14 +169,18 @@ function withNeighbourStates (list, stairBoxes) {
 
 // The block entity data a block's model depends on, which no state has: a bed's colour (its block entity's color), a
 // head's rotation on the floor (Rotation, in degrees: the 16 steps of 22.5 either way round) and the legacy skull
-// block's type (SkullType). Each state of such a block is drawn with every value of them, under block_entity.<tag>,
-// which prismarine-viewer gives a block from its block entity; the block entity's default first (blockEntityDefault),
-// the one a block without a block entity takes.
+// block's type (SkullType); and two the client works out for a chest: the side its other half is on (pair: none, or
+// north, east, south or west, from its pairx and pairz; an ender chest has none) and how far its lid is open (lid: 0
+// shut to 9 open, as a block event animates it). Each state of such a block is drawn with every value of them, under
+// block_entity.<tag>, which prismarine-viewer gives a block from its block entity; the block entity's default first
+// (blockEntityDefault), the one a block without a block entity takes.
 const ROTATIONS = [...Array(16).keys()].map(i => i * 22.5).concat([...Array(15).keys()].map(i => (i + 1) * 22.5 - 360))
 const BLOCK_ENTITY_DATA = [
   [s => s.render?.shape === 'Bed', { 'block_entity.color': [14, ...Array(14).keys(), 15] }],
   [s => s.render?.shape === 'Skull' && s.name === 'skull', { 'block_entity.SkullType': [...Array(7).keys()] }],
-  [s => s.render?.shape === 'Skull', { 'block_entity.Rotation': ROTATIONS }]
+  [s => s.render?.shape === 'Skull', { 'block_entity.Rotation': ROTATIONS }],
+  [s => s.render?.shape === 'Chest' && !/ender/.test(s.name), { 'block_entity.pair': ['none', 'north', 'east', 'south', 'west'] }],
+  [s => s.render?.shape === 'Chest', { 'block_entity.lid': [...Array(LID_STEPS + 1).keys()] }]
 ]
 
 function withBlockEntityStates (list) {
@@ -248,7 +255,7 @@ function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
   // the textures of the block's type each state takes, then the ones its tessellator draws of them (a door's half)
   for (const [name, list] of byName) {
     const shape = list[0].render?.shape
-    const canon = canonicalFaces(list.map(s => ({ ...s, faces: s.packFaces })), shape, baseFaces.get(name))
+    const canon = canonicalFaces(list.map(s => ({ ...s, faces: s.packFaces })), shape, baseFaces.get(name), resolver.texturePick(list[0].name))
     const keyed = [...canon.values()]
     list.forEach((s, i) => {
       let faces = keyed.length === list.length ? keyed[i] : s.packFaces

@@ -22,3 +22,7 @@
 	path = packages/minecraft-data
 	url = https://github.com/PrismarineJS/node-minecraft-data
 	branch = bedrock-viewer
+[submodule "packages/minecraft-jar-extractor"]
+	path = packages/minecraft-jar-extractor
+	url = https://github.com/PrismarineJS/minecraft-jar-extractor
+	branch = bedrock-viewer

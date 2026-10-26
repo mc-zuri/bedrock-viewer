@@ -62,7 +62,9 @@ const HARDCODED = {
   unpowered_repeater: { index: 0 },
   powered_repeater: { index: 1 },
   unpowered_comparator: { index: 0 },
-  powered_comparator: { index: 1 }
+  powered_comparator: { index: 1 },
+  // a barrel's textures list the shut and the open one: its open_bit picks
+  barrel: { indexBy: 'open_bit' }
 }
 
 class TextureResolver {
@@ -93,6 +95,11 @@ class TextureResolver {
     return out
   }
 
+  // the prop that picks a block's textures by its own value (a barrel's open_bit), or null
+  texturePick (name) {
+    return HARDCODED[name]?.indexBy ?? HARDCODED[name]?.by ?? null
+  }
+
   // the faces a blocks.json entry gives, or null
   fromBlock (key, data) {
     const keys = faceKeys(this.blocks[key]?.textures)
@@ -105,7 +112,7 @@ class TextureResolver {
   // name + the state's data value (its permutation index) and properties -> { faces: {face: path}, source } or null
   resolve (name, data = 0, props = {}) {
     const hard = HARDCODED[name]
-    data = hard?.index ?? data
+    data = hard?.index ?? (hard?.indexBy ? +(props[hard.indexBy] ?? 0) : data)
     if (hard?.terrainKeys) {
       const path = terrainPath(this.terrain[hard.terrainKeys[+props[hard.by]] ?? hard.terrainKeys[0]], 0)
       if (path) return { faces: Object.fromEntries(FACES.map(f => [f, path])), source: 'hardcoded' }

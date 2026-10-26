@@ -339,6 +339,63 @@ function blockEntities (world) {
   return { center: new Vec3(8, 2, 7), radius: 14, camera: { x: 8, y: 9, z: 22 } }
 }
 
+// Chests and doors as a server sends them and changes them, every few seconds (toggles: the server opens and shuts
+// them): chests single and double (a pair: each half's block entity names the other, pairx and pairz) in each
+// direction, a trapped, an ender and a copper chest, their lids opened and shut by block events; doors in each
+// direction with each hinge, as the game keeps them (the lower half holds the direction and openness, the upper half
+// the hinge), opened and shut by block updates of their lower halves; and a barrel, opened and shut
+function containers (world) {
+  const stone = world.first('stone')
+  for (let x = -1; x <= 22; x++) for (let z = -1; z <= 14; z++) world.set(x, 0, z, stone)
+  const SIDES = ['north', 'east', 'south', 'west']
+  const facing = (name, side, props = {}) => world.state(name, { ...props, 'minecraft:cardinal_direction': side, facing_direction: { north: 2, south: 3, west: 4, east: 5 }[side] })
+  const lids = []
+  const blocks = []
+  // single chests facing each way, and a trapped, an ender and a copper chest
+  SIDES.forEach((side, i) => {
+    world.set(1 + i * 2, 1, 1, facing('chest', side))
+    lids.push({ x: 1 + i * 2, y: 1, z: 1 })
+  })
+  ;['trapped_chest', 'ender_chest', 'copper_chest'].forEach((name, i) => {
+    if (!world.has(name)) return
+    world.set(10 + i * 2, 1, 1, facing(name, 'south'))
+    lids.push({ x: 10 + i * 2, y: 1, z: 1 })
+  })
+  // double chests facing each way (a pair side by side across its facing), and a trapped and a copper one
+  const pair = (name, side, [x, z]) => {
+    const [dx, dz] = side === 'north' || side === 'south' ? [1, 0] : [0, 1]
+    for (const [i, [px, pz], [ox, oz]] of [[0, [x, z], [x + dx, z + dz]], [1, [x + dx, z + dz], [x, z]]]) {
+      world.set(px, 1, pz, facing(name, side))
+      world.blockEntity(px, 1, pz, 'Chest', { pairx: ['int', ox], pairz: ['int', oz], pairlead: ['byte', i === 0 ? 1 : 0] })
+    }
+    // (the lid event for the half it was opened by: the other half follows)
+    lids.push({ x, y: 1, z })
+  }
+  SIDES.forEach((side, i) => pair('chest', side, [1 + i * 3, 4]))
+  pair('trapped_chest', 'south', [14, 4])
+  if (world.has('copper_chest')) pair('copper_chest', 'south', [17, 4])
+  // doors: each direction with the hinge left and right, as the game keeps a door: its lower half's direction and
+  // openness, its upper half's hinge (the rest of each half's states as a fresh one has them)
+  const doorName = ['wooden_door', 'door'].find(n => world.has(n))
+  const door = (x, z, side, hinge) => {
+    const direction = { east: 0, south: 1, west: 2, north: 3 }[side]
+    const cardinal = { east: 'south', south: 'west', west: 'north', north: 'east' }[side]
+    const lower = open => world.state(doorName, { direction, 'minecraft:cardinal_direction': cardinal, open_bit: open, upper_block_bit: 0, door_hinge_bit: 0 })
+    world.set(x, 1, z, lower(0))
+    // (before 1.2 the upper half's hinge is the low bit of its data, which its states read as its direction)
+    world.set(x, 2, z, world.state(doorName, { upper_block_bit: 1, door_hinge_bit: hinge, open_bit: 0, ...(world.mcData.blockStates ? {} : { direction: hinge }) }))
+    blocks.push({ pos: { x, y: 1, z }, states: [lower(0), lower(1)] })
+  }
+  if (doorName) SIDES.forEach((side, i) => [0, 1].forEach(hinge => door(1 + i * 4 + hinge * 2, 8, side, hinge)))
+  // a barrel facing up
+  if (world.has('barrel')) {
+    const barrel = open => world.state('barrel', { facing_direction: 1, open_bit: open })
+    world.set(18, 1, 8, barrel(0))
+    blocks.push({ pos: { x: 18, y: 1, z: 8 }, states: [barrel(0), barrel(1)] })
+  }
+  return { center: new Vec3(10, 1, 5), radius: 14, camera: { x: 10, y: 8, z: 18 }, toggles: { every: 3, lids, blocks } }
+}
+
 // Redstone dust as its neighbours connect it: a line powered from a lever and fading along its length, a corner, a T
 // and a cross, a lone dust, dust stepping up a block and down from it, and dust running into a repeater's back and a
 // torch
@@ -420,6 +477,7 @@ const SCENES = {
   states: { title: 'Every state of (regex)', build: states },
   connected: { title: 'Fences, panes, walls, stairs', build: connected },
   blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
+  containers: { title: 'Chests and doors, opening and shutting', build: containers },
   redstone: { title: 'Redstone dust', build: redstone },
   entities: { title: 'Entities, armor, held and dropped items, particles', build: entityScene },
   bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
@@ -427,8 +485,8 @@ const SCENES = {
 
 function buildScene (version, scene, filter) {
   const world = new SceneWorld(version)
-  const { center, radius, camera, entities = [], particles = [] } = SCENES[scene].build(world, filter)
-  return { world, center, radius, camera, entities, particles }
+  const { center, radius, camera, entities = [], particles = [], toggles = null } = SCENES[scene].build(world, filter)
+  return { world, center, radius, camera, entities, particles, toggles }
 }
 
 module.exports = { buildScene, SCENES: Object.entries(SCENES).map(([name, s]) => ({ name, title: s.title })), SceneWorld }

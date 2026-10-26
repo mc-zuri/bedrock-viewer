@@ -37,13 +37,14 @@ function isFunctionOf (states, props) {
 
 // states: [{ props, data, faces: [6 textures] | null }] of one block -> Map(state -> the faces it should use).
 // baseFaces: the block's textures as its first permutation has them.
-function canonicalFaces (states, shape, baseFaces) {
+// texturePick: a prop that picks the block's textures although it is one of NON_TEXTURE_PROPS (a barrel's open_bit)
+function canonicalFaces (states, shape, baseFaces, texturePick = null) {
   const result = new Map()
   const withFaces = states.filter(s => s.faces)
   if (withFaces.length === 0) return result
   const first = withFaces.reduce((a, b) => (b.data < a.data ? b : a))
   const base = baseFaces ?? first.faces
-  const candidates = Object.keys(first.props).filter(p => !NON_TEXTURE_PROPS.has(p) && !(shape === 'Door' && DOOR_PROPS.has(p)))
+  const candidates = Object.keys(first.props).filter(p => p === texturePick || (!NON_TEXTURE_PROPS.has(p) && !(shape === 'Door' && DOOR_PROPS.has(p))))
   // nothing that picks a texture: every state takes the block's own
   if (candidates.length === 0) {
     for (const s of states) result.set(s, base)

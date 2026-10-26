@@ -68,8 +68,12 @@ version before it shares that one's folder (`"1.21.2": "1.21.0"`).
 The generator of a state is chosen by the tessellator shape the client reports for its block (`Block`, `Stairs`,
 `Fence`, `Torch`, `DoublesidedWideCrossTexture`, ...):
 
-- box shapes (slabs, stairs, doors, trapdoors, cakes, hoppers, cauldrons, anvils, beds, chests, ...): the state's own
+- box shapes (slabs, stairs, trapdoors, cakes, hoppers, cauldrons, anvils, beds, chests, ...): the state's own
   collision boxes, else its selection box, each face textured by its side;
+- doors: as the client lays a door out (the classic door models: a slab 3 thick, turned to the door's facing, a quarter
+  turn further about its hinge when open), not their collision boxes, which are the same for every state. A door's
+  lower half holds its direction and openness and its upper half its hinge; prismarine-viewer gives each half the
+  other's;
 - a block with a front (furnace, dispenser, observer, carved pumpkin, glazed terracotta): turned to its facing;
 - logs, basalt, chains: turned to their pillar axis;
 - plants: two crossed planes; crops four in a #; torches (leaning off the wall their selection box is on), lanterns,
@@ -135,6 +139,8 @@ of the block's block entity, which prismarine-viewer gives a block as properties
 | beds | `block_entity.color` | the bed sheet of that colour (`textures/entity/bed/<colour>`) |
 | heads on the floor | `block_entity.Rotation` | turned in the 16 steps of 22.5 degrees, either way round |
 | the `skull` block (before 1.21.40) | `block_entity.SkullType` | the head of that type |
+| chests (but ender chests) | `block_entity.pair` | `none`, or the side the other half of a double chest is on (its block entity's `pairx` and `pairz`): this block's half of the double chest, on the double sheet |
+| chests | `block_entity.lid` | the lid and latch turned up about the hinge, from 0 (shut) to 9 (a quarter turn): how far a block event has opened it, which prismarine-viewer animates |
 
 The block entity's default comes first (a red bed, a skeleton skull facing south), the variant a block without a
 block entity takes, and after them the variants keyed by the state alone, which a value of no step takes.
@@ -142,7 +148,7 @@ block entity takes, and after them the variants keyed by the state alone, which 
 ### What is not drawn
 
 - A sign's text, a banner's colour and patterns (its flag draws the sheet's white: Bedrock's dye colours are in the
-  client's code, in no pack), a decorated pot's sherds, a statue's pose, a double chest's other half: block entity
+  client's code, in no pack), a decorated pot's sherds, a statue's pose: block entity
   data the client draws in code.
 - Education Edition's chalkboards: a board over up to 3 x 2 blocks that its block entity lays out from one of them.
 - Boats, whose geometry the client builds in code: the viewer draws them with the classic boat model, the layout

@@ -117,3 +117,52 @@ describe('geometry', () => {
     assert.strictEqual(head({ 'block_entity.Rotation': '90' }).y, 270)
   })
 })
+
+describe('doors and chests', () => {
+  const door = props => generate({ name: 'wooden_door', props: { door_hinge_bit: '0', open_bit: '0', upper_block_bit: '0', ...props }, collision: [[0, 0, 0, 1, 1, 0.1875]] }, ctx('Door'))
+
+  it('lays a door out as the client does, by its facing, hinge and openness (not its collision shape)', () => {
+    // (a slab 3 thick at the west side of a door facing east; the legacy direction 0 is east, the cardinal south)
+    const closed = door({ direction: '0' })
+    assert.deepStrictEqual([closed.elements[0].from, closed.elements[0].to, closed.y ?? 0], [[0, 0, 0], [3, 16, 16], 0])
+    assert.strictEqual(door({ 'minecraft:cardinal_direction': 'south' }).y ?? 0, 0)
+    assert.strictEqual(door({ 'minecraft:cardinal_direction': 'east' }).y, 270)
+    // (open: a quarter turn about its hinge, the other way for a right hinge)
+    assert.strictEqual(door({ direction: '0', open_bit: '1' }).y, 90)
+    assert.strictEqual(door({ direction: '0', open_bit: '1', door_hinge_bit: '1' }).y, 270)
+    // (the bottom half's end is its bottom, the upper half's its top)
+    assert.ok(door({}).elements[0].faces.down && !door({}).elements[0].faces.up)
+    assert.ok(door({ upper_block_bit: '1' }).elements[0].faces.up)
+  })
+
+  const chestCtx = ctx('Chest', { geometry: () => null, ref: p => /chest\/(normal|double_normal)$/.test(p) ? p.replace(/^textures\//, '') : null })
+  const chest = props => generate({ name: 'chest', props: { 'minecraft:cardinal_direction': 'north', ...props }, collision: [[0.0625, 0, 0.0625, 0.9375, 0.875, 0.9375]] }, chestCtx)
+
+  it('draws a single chest on the single sheet, its lid turned up about its hinge by the lid step', () => {
+    const shut = chest({})
+    assert.strictEqual(shut.textures.chest, 'entity/chest/normal')
+    assert.strictEqual(shut.elements.length, 3)
+    assert.strictEqual(shut.elements[1].rotation, undefined)
+    const open = chest({ 'block_entity.lid': '9' })
+    assert.deepStrictEqual(open.elements[1].rotation, { origin: [8, 9, 15], axis: 'x', angle: 90 })
+    assert.deepStrictEqual(open.elements[2].rotation, open.elements[1].rotation)
+    assert.strictEqual(open.elements[0].rotation, undefined)
+  })
+
+  it('draws a paired chest as its half of the double chest, the latch between the halves', () => {
+    // (facing north, the other half to the east: this is the west half, from x 1 to 16)
+    const west = chest({ 'block_entity.pair': 'east' })
+    assert.strictEqual(west.textures.chest, 'entity/chest/double_normal')
+    assert.deepStrictEqual(bounds(west.elements)[0], [1, 16])
+    assert.ok(west.elements[0].faces.west && !west.elements[0].faces.east)
+    // (its front's u runs from the middle of the double front, at the seam, outward)
+    assert.strictEqual(west.elements[0].faces.north.uv[0], 29 * 16 / 128)
+    const east = chest({ 'block_entity.pair': 'west' })
+    assert.deepStrictEqual(bounds(east.elements)[0], [0, 15])
+    // (a chest facing south with its other half to the east is the east half, turned)
+    const south = chest({ 'minecraft:cardinal_direction': 'south', 'block_entity.pair': 'east' })
+    assert.deepStrictEqual([bounds(south.elements)[0], south.y], [[0, 15], 180])
+    // (a side that is not across its facing pairs it with nothing)
+    assert.strictEqual(chest({ 'block_entity.pair': 'north' }).textures.chest, 'entity/chest/normal')
+  })
+})

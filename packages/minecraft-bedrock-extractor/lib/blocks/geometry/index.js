@@ -139,11 +139,44 @@ for (const [shape, draw] of [['Chest', entity.chest], ['Bed', entity.bed], ['Sku
 
 G.TopSnow = (state, ctx) => result(boxesToElements(stateBoxes(state, { prefer: 'outline' }), ctx.tintFaces), textureVars(ctx.faces))
 
-// a door is its collision slab, drawn with the half it is (its faces all that half's texture), mirrored on its hinge
+// A door, laid out as the client draws it (the classic door models): a slab 3 thick along the west side of a door that
+// faces east, turned to the door's facing, and an open door a quarter turn further about its hinge; drawn with the half
+// it is (its faces all that half's texture), its UVs mirrored by hinge and openness as the handle goes. Its collision
+// shape is no help: the client's is the same for every state. The legacy direction is the facing (0 east, 1 south, 2
+// west, 3 north); minecraft:cardinal_direction runs a quarter turn on from it (south for a door facing east). Only the
+// lower half's direction and openness and only the upper half's hinge count: prismarine-viewer gives each half the
+// other's (viewer/lib/models.js).
+const DOOR_FACING = ['east', 'south', 'west', 'north']
+const DOOR_CARDINAL = { south: 'east', west: 'south', north: 'west', east: 'north' }
+const DOOR_Y = { east: 0, south: 90, west: 180, north: 270 }
+// the faces' UVs ([uv, rotation]) by hinge and openness: the sides, the bottom half's down, the upper half's up
+const DOOR_UV = {
+  left: { north: [3, 0, 0, 16], south: [0, 0, 3, 16], west: [0, 0, 16, 16], east: [16, 0, 0, 16], down: [[16, 13, 0, 16], 90], up: [[0, 3, 16, 0], 90] },
+  left_open: { north: [0, 0, 3, 16], south: [0, 0, 3, 16], west: [16, 0, 0, 16], east: [0, 0, 16, 16], down: [[0, 16, 16, 13], 90], up: [[0, 3, 16, 0], 270] },
+  right: { north: [3, 0, 0, 16], south: [0, 0, 3, 16], west: [16, 0, 0, 16], east: [0, 0, 16, 16], down: [[0, 13, 16, 16], 90], up: [[0, 0, 16, 3], 270] },
+  right_open: { north: [3, 0, 0, 16], south: [3, 0, 0, 16], west: [0, 0, 16, 16], east: [16, 0, 0, 16], down: [[16, 16, 0, 13], 90], up: [[0, 0, 16, 3], 90] }
+}
+
+function doorFacing (props) {
+  if (props['minecraft:cardinal_direction']) return DOOR_CARDINAL[props['minecraft:cardinal_direction']] ?? 'east'
+  return DOOR_FACING[+(props.direction ?? 0)] ?? 'east'
+}
+
 G.Door = (state, ctx) => {
-  const flip = state.props.door_hinge_bit === '1'
-  const elements = stateBoxes(state).map(([from, to]) => box(from, to, { texture: 'door', uvFlip: flip }))
-  return result(elements, { door: ctx.faces[2], particle: ctx.faces[2] })
+  const { props } = state
+  const upper = props.upper_block_bit === '1'
+  const right = props.door_hinge_bit === '1'
+  const open = props.open_bit === '1'
+  const uv = DOOR_UV[(right ? 'right' : 'left') + (open ? '_open' : '')]
+  const faces = {}
+  for (const side of ['north', 'south', 'west', 'east']) {
+    faces[side] = { texture: '#door', uv: uv[side] }
+    if (side !== 'east') faces[side].cullface = side
+  }
+  const end = upper ? 'up' : 'down'
+  faces[end] = { texture: '#door', uv: uv[end][0], rotation: uv[end][1], cullface: end }
+  const y = (DOOR_Y[doorFacing(props)] + (open ? (right ? 270 : 90) : 0)) % 360
+  return result([{ from: [0, 0, 0], to: [3, 16, 16], faces }], { door: ctx.faces[2], particle: ctx.faces[2] }, { ao: false, y })
 }
 
 // a ladder is a plane against the wall its thin collision box leans on

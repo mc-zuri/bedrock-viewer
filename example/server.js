@@ -113,7 +113,7 @@ function skinOf (version) {
 }
 
 io.on('connection', socket => {
-  const { version, world, center, radius, camera, entities, particles } = current
+  const { version, world, center, radius, camera, entities, particles, toggles } = current
   socket.emit('version', version)
   socket.emit('scene', { center, radius, camera })
   for (const column of world.columns.values()) {
@@ -139,6 +139,12 @@ io.on('connection', socket => {
     }
     if (tick % 20 === 0) {
       for (const { every = 1, ...particle } of particles) if ((tick / 20) % every === 0) socket.emit('particle', particle)
+    }
+    // chests' lids opened and shut by block events, doors and barrels by block updates, every few seconds
+    if (toggles && tick % (toggles.every * 20) === 0) {
+      const open = (tick / (toggles.every * 20)) % 2 === 1
+      for (const pos of toggles.lids) socket.emit('lid', { pos, open })
+      for (const { pos, states } of toggles.blocks) socket.emit('blockUpdate', { pos, stateId: states[open ? 1 : 0] })
     }
   }, 50)
   socket.on('disconnect', () => clearInterval(timer))

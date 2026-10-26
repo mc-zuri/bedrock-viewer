@@ -5,8 +5,9 @@
 // What a block entity holds is not in the state. A bed's colour (block_entity.color) and a head's type and rotation
 // (block_entity.SkullType, block_entity.Rotation) are drawn from the props of those names, which prismarine-viewer
 // gives a block from its block entity; without them a block draws as a block entity of its defaults does (a red bed,
-// a skeleton skull facing south). A sign's text, a banner's colours, a pot's sherds, a statue's pose and a double
-// chest are not drawn.
+// a skeleton skull facing south). A chest is drawn with the half of a double chest it is (block_entity.pair) and its
+// lid open as far as block_entity.lid says, which prismarine-viewer works out from the block entity and animates. A
+// sign's text, a banner's colours, a pot's sherds and a statue's pose are not drawn.
 const { DIRS } = require('./boxes')
 
 // A cube's faces on its texture sheet, Bedrock's box UV: [u0, v0, u1, v1] in texture pixels per face
@@ -67,8 +68,32 @@ function facingOf (props) {
   return props['minecraft:cardinal_direction'] ?? FACING[props.facing_direction] ?? DIRECTION[+(props.direction ?? 2)] ?? 'north'
 }
 
-// A chest: base, lid and latch on the 64 x 64 chest sheet, the latch and the sheet's front at the north side, turned
-// to the state's facing
+// a chest lid's steps from shut (block_entity.lid 0) to open (9: a quarter turn up about its hinge)
+const LID_STEPS = 9
+const SIDES = ['north', 'east', 'south', 'west']
+
+// the part of a box from x0 to x1 (block space) of the box from `from` to `to`: its faces' UVs cut to it, an end face
+// only where the part reaches that end. Along x a face's u runs from its first corner at the east (north, down) or
+// the west (south, up), as the viewer lays faces out.
+function boxPart (from, to, uv, x0, x1) {
+  const out = {}
+  const span = to[0] - from[0]
+  for (const [dir, [u0, v0, u1, v1]] of Object.entries(uv)) {
+    if (dir === 'east' || dir === 'west') {
+      if ((dir === 'east' ? x1 === to[0] : x0 === from[0])) out[dir] = [u0, v0, u1, v1]
+      continue
+    }
+    const fromEast = dir === 'north' || dir === 'down'
+    const at = x => u0 + (fromEast ? (to[0] - x) : (x - from[0])) / span * (u1 - u0)
+    out[dir] = fromEast ? [at(x1), v0, at(x0), v1] : [at(x0), v0, at(x1), v1]
+  }
+  return out
+}
+
+// A chest: base, lid and latch on the chest sheet (64 x 64), the latch and the sheet's front at the north side, turned
+// to the state's facing. Paired with another (block_entity.pair: the side the other half is on), it is its half of
+// the double chest on the double sheet (128 x 64: the boxes 30 wide, the latch between the halves), where the version
+// has one. Its lid and latch open by block_entity.lid, a quarter turn at LID_STEPS about the hinge at the back.
 function chest (state, ctx) {
   const name = state.name.replace(/^waxed_/, '')
   const stage = { exposed: 'exposed', weathered: 'weathered', oxidized: 'oxidized' }[name.split('_')[0]] ?? 'default'
@@ -76,15 +101,40 @@ function chest (state, ctx) {
   if (/ender/.test(name)) sheet = 'ender'
   else if (/trapped/.test(name)) sheet = 'trapped'
   else if (/copper/.test(name)) sheet = 'copper_' + stage
-  const texture = ctx.ref(`textures/entity/chest/${sheet}`)
+  const facing = facingOf(state.props)
+  const pair = state.props['block_entity.pair'] ?? 'none'
+  // (the other half's side as the model is laid out, facing north: this block is the west half of a pair to the east)
+  const side = pair === 'none' ? null : SIDES[(SIDES.indexOf(pair) - TURN[facing] / 90 + 4) % 4]
+  const half = side === 'east' ? 'west' : side === 'west' ? 'east' : null
+  const double = half && ctx.ref(`textures/entity/chest/${{ normal: 'double_normal', trapped: 'trapped_double' }[sheet] ?? sheet + '_double'}`)
+  const texture = double || ctx.ref(`textures/entity/chest/${sheet}`)
   if (!texture) return null
-  const s = [64, 64]
-  const elements = [
-    element([1, 0, 1], [15, 10, 15], boxUv([0, 19], [14, 10, 14]), s, 'chest'),
-    element([1, 9, 1], [15, 14, 15], boxUv([0, 0], [14, 5, 14]), s, 'chest'),
-    element([7, 7, 0], [9, 11, 1], boxUv([0, 0], [2, 4, 1]), s, 'chest')
-  ]
-  return { elements, textures: { chest: texture, particle: texture }, ao: true, y: TURN[facingOf(state.props)] }
+  const step = Math.min(LID_STEPS, Math.max(0, +(state.props['block_entity.lid'] ?? 0)))
+  const rotation = step ? { origin: [8, 9, 15], axis: 'x', angle: round(step * 90 / LID_STEPS) } : undefined
+  let elements
+  if (double) {
+    // (the double chest from x 1 to 31 of the two blocks, this block's 16 of it)
+    const [x0, x1] = half === 'west' ? [0, 16] : [16, 32]
+    const part = (from, to, uv, opts) => {
+      const a = Math.max(from[0], x0)
+      const b = Math.min(to[0], x1)
+      const cut = boxPart(from, to, uv, a, b)
+      return element([a - x0, from[1], from[2]], [b - x0, to[1], to[2]], cut, [128, 64], 'chest', { faces: Object.keys(cut), ...opts })
+    }
+    elements = [
+      part([1, 0, 1], [31, 10, 15], boxUv([0, 19], [30, 10, 14])),
+      part([1, 9, 1], [31, 14, 15], boxUv([0, 0], [30, 5, 14]), { rotation }),
+      part([15, 7, 0], [17, 11, 1], boxUv([0, 0], [2, 4, 1]), { rotation })
+    ]
+  } else {
+    const s = [64, 64]
+    elements = [
+      element([1, 0, 1], [15, 10, 15], boxUv([0, 19], [14, 10, 14]), s, 'chest'),
+      element([1, 9, 1], [15, 14, 15], boxUv([0, 0], [14, 5, 14]), s, 'chest', { rotation }),
+      element([7, 7, 0], [9, 11, 1], boxUv([0, 0], [2, 4, 1]), s, 'chest', { rotation })
+    ]
+  }
+  return { elements, textures: { chest: texture, particle: texture }, ao: true, y: TURN[facing] }
 }
 
 // the bed sheets (textures/entity/bed/) by a bed's colour, its block entity's color: its dye's data value
@@ -311,4 +361,4 @@ function statue (state, ctx) {
   return { elements, textures: { golem: texture, particle: texture }, ao: true, y: TURN[facingOf(state.props)] }
 }
 
-module.exports = { chest, bed, skull, sign, banner, decoratedPot, statue, geometryIndex, boxUv }
+module.exports = { chest, bed, skull, sign, banner, decoratedPot, statue, geometryIndex, boxUv, boxPart, LID_STEPS }
