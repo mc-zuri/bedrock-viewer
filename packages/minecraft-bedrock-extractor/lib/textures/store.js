@@ -53,7 +53,8 @@ class TextureStore {
     const root = Object.keys(FOLDERS).find(r => stem.startsWith(r) && FOLDERS[r] === folder)
     const base = stem.slice(stem.lastIndexOf('/') + 1)
     const rel = root ? stem.slice(root.length) : stem.replace(/^textures\//, '')
-    for (const candidate of [base, rel.replace(/\//g, '__')]) {
+    // (a texture of another folder keeps its path: entity__chest__normal)
+    for (const candidate of root ? [base, rel.replace(/\//g, '__')] : [rel.replace(/\//g, '__')]) {
       const owner = this.taken.get(folder + '/' + candidate)
       if (!owner || owner === stem) return candidate
     }

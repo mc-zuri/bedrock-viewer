@@ -12,6 +12,7 @@ const { makeRenderOf } = require('./render')
 const { canonicalFaces, doorWood, drawnFaces } = require('./faces')
 const { propsOf, stateKey } = require('./states')
 const { generate } = require('./geometry')
+const { geometryIndex } = require('./geometry/entity')
 const { buildBlockState } = require('./blockstate')
 const { sample, redstoneTable, stemTable, hexColor, COLORMAPS } = require('./tints')
 const { overlayTextures, constantTints } = require('../image/overlay')
@@ -124,7 +125,49 @@ function legacyStatesOf (mcData, legacyBlocks, reference, layouts) {
   return states
 }
 
-function exportBlocks ({ stack, mcData, store, tables, legacy }) {
+// The states the client completes from the neighbours where the states say nothing of them (before 1.26.50): a
+// fence's, pane's or bars' connection to each side, a stair's corner. Each such state is drawn with every value of
+// them, under the names 1.26.50's states give them (minecraft:connection_<side>, minecraft:corner), which
+// prismarine-viewer works out from the neighbours where a block's state lacks them; the corners of a stair take the
+// boxes the newest version's states of them have.
+const CONNECTED = new Set(['Fence', 'DoubleSideFence', 'MetalBars'])
+const SIDES = ['north', 'east', 'south', 'west']
+const CORNERS = ['none', 'inner_left', 'inner_right', 'outer_left', 'outer_right']
+
+function withNeighbourStates (list, stairBoxes) {
+  const out = []
+  for (const s of list) {
+    const shape = s.render?.shape
+    if (CONNECTED.has(shape) && !('minecraft:connection_north' in s.props)) {
+      for (let mask = 0; mask < 16; mask++) {
+        const props = { ...s.props }
+        SIDES.forEach((side, i) => { props['minecraft:connection_' + side] = mask & (1 << i) ? '1' : '0' })
+        out.push({ ...s, props })
+      }
+    } else if (shape === 'Stairs' && !('minecraft:corner' in s.props) && 'weirdo_direction' in s.props && stairBoxes.size) {
+      for (const corner of CORNERS) {
+        const boxes = stairBoxes.get(`${s.props.weirdo_direction},${s.props.upside_down_bit},${corner}`)
+        if (corner === 'none' || boxes) out.push({ ...s, props: { ...s.props, 'minecraft:corner': corner }, collision: corner === 'none' ? s.collision : boxes })
+      }
+    } else {
+      out.push(s)
+    }
+  }
+  return out
+}
+
+// the boxes of each stair state of a version whose states have corners: 'weirdo_direction,upside_down_bit,corner'
+function stairBoxesOf (mcData) {
+  const boxes = new Map()
+  if (!mcData?.blockStates) return boxes
+  for (const s of statesOf(mcData, new Map())) {
+    if (s.name !== 'oak_stairs' || !('minecraft:corner' in s.props)) continue
+    boxes.set(`${s.props.weirdo_direction},${s.props.upside_down_bit},${s.props['minecraft:corner']}`, s.collision)
+  }
+  return boxes
+}
+
+function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
   const states = mcData.blockStates ? statesOf(mcData, tables.layouts) : legacyStatesOf(mcData, legacy.blocks, legacy.reference, tables.layouts)
   const resolver = new TextureResolver(stack, { legacyKeys: tables.legacyKeys })
   const renderOf = makeRenderOf(tables)
@@ -155,10 +198,9 @@ function exportBlocks ({ stack, mcData, store, tables, legacy }) {
   const baseFaces = new Map()
   const report = { missingTile: new Set(), unrendered: new Set(), failed: [], shapes: {} }
   for (const s of states) {
-    const resolved = resolver.resolve(s.name, s.data)
+    const resolved = resolver.resolve(s.name, s.data, s.props)
     s.resolved = resolved
     s.packFaces = resolved ? FACES.map(f => resolved.faces[f]) : null
-    if (resolved?.source === 'missing_tile') report.missingTile.add(s.name)
     s.render = renderOf(s.name, s.props)
     if (!s.render) report.unrendered.add(s.name)
     // (the states of a legacy version go under minecraft-data's name of their block)
@@ -202,11 +244,22 @@ function exportBlocks ({ stack, mcData, store, tables, legacy }) {
     return ref ?? MISSING
   }
 
+  const stairBoxes = stairBoxesOf(newest)
+  // the packs' entity geometry and client entities, for the blocks drawn by block entity renderers
+  const geometries = geometryIndex(stack)
+  const clientEntities = new Map()
+  for (const path of stack.files.keys()) {
+    if (!/^entity\/.+\.json$/.test(path)) continue
+    try {
+      const d = stack.json(path)?.['minecraft:client_entity']?.description
+      if (d?.identifier && !clientEntities.has(d.identifier)) clientEntities.set(d.identifier, d)
+    } catch { }
+  }
   for (const [name, list] of byName) {
     const entries = []
     let defaultModel = null
     let defaultTexture = null
-    for (const s of list) {
+    for (const s of withNeighbourStates(list, stairBoxes)) {
       const shape = s.render?.shape ?? null
       report.shapes[shape ?? 'unknown'] = (report.shapes[shape ?? 'unknown'] ?? 0) + 1
       const faces = s.faces?.map(refOf) ?? null
@@ -221,7 +274,9 @@ function exportBlocks ({ stack, mcData, store, tables, legacy }) {
         tintFaces: method ? Object.fromEntries(FACES.map((d, i) => [d, tintable(faces[i])])) : false,
         tintTexture: tintable,
         tessellator: tables.tessellator,
-        ref: p => store.ref(p)
+        ref: p => store.ref(p),
+        geometry: id => geometries.get(id) ?? null,
+        clientEntity: id => clientEntities.get(id) ?? null
       }
       let model
       try {
@@ -231,6 +286,8 @@ function exportBlocks ({ stack, mcData, store, tables, legacy }) {
         model = null
       }
       if (!model) { entries.push({ props: s.props, parts: [] }); continue }
+      // (the unknown block is the missing tile in the game too)
+      if (s.resolved?.source === 'missing_tile' && s.name !== 'unknown') report.missingTile.add(name)
       const parts = (model.parts ?? [model]).map(m => {
         addOverlays(m, overlayOf)
         // a tint the viewer would draw in another colour: baked into the faces' textures

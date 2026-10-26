@@ -46,6 +46,10 @@ function faceKeys (textures) {
 // per-state faces): a blocks.json key to use instead, or a path per face.
 const HARDCODED = {
   iron_chain: { key: 'chain' },
+  // 1.18.30's hanging propagule, a block of its own before 1.19.0 made it a state of mangrove_propagule
+  mangrove_propagule_hanging: { key: 'mangrove_propagule' },
+  // a terrain texture by a state's property, as the client picks it
+  shelf_mushroom: { by: 'growth', terrainKeys: ['shelf_mushroom_small', 'shelf_mushroom_large'] },
   // before 1.1 the End portal and gateway are a shader over the End sky, with no block texture
   end_portal: { fallback: 'textures/environment/end_sky' },
   end_gateway: { fallback: 'textures/environment/end_sky' },
@@ -93,9 +97,13 @@ class TextureResolver {
     return FACES.every(f => faces[f]) ? faces : null
   }
 
-  // name + the state's data value (its permutation index) -> { faces: {face: path}, source } or null
-  resolve (name, data = 0) {
+  // name + the state's data value (its permutation index) and properties -> { faces: {face: path}, source } or null
+  resolve (name, data = 0, props = {}) {
     const hard = HARDCODED[name]
+    if (hard?.terrainKeys) {
+      const path = terrainPath(this.terrain[hard.terrainKeys[+props[hard.by]] ?? hard.terrainKeys[0]], 0)
+      if (path) return { faces: Object.fromEntries(FACES.map(f => [f, path])), source: 'hardcoded' }
+    }
     if (hard?.path && this.stack.resolveTexture(hard.path)) {
       return { faces: Object.fromEntries(FACES.map(f => [f, hard.path])), source: 'hardcoded' }
     }

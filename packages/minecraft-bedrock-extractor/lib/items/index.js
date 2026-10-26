@@ -53,7 +53,9 @@ function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock,
   }
   for (const item of mcData.itemsArray) {
     const name = item.name
-    const icon = resolve(name)
+    let icon = resolve(name)
+    // an icon whose file the packs lack (the camera's): its block's, as for a block item
+    if (icon && !imageOf(icon.path) && itemBlocks.get(name)) icon = { path: itemBlocks.get(name).north, colors: itemBlocks.get(name).colors }
     let texture = null
     let image = null
     if (icon) {

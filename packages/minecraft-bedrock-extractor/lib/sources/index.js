@@ -59,15 +59,26 @@ function pickSupplement (version, sources) {
   return clients.sort((p, q) => distance(p) - distance(q) || compareVersions(p.version, q.version))[0] ?? null
 }
 
-// the plan of one version: its source and, for a git source, the client that supplements it
+// A server may have blocks its client has no textures of yet (1.18.30's mud and mangrove, behind the Wild Update
+// experiment, and 1.17.30's sculk; their textures came with 1.19.0): the nearest client newer than the version fills
+// them, and below it the newest client
+function pickLater (version, sources, source) {
+  const newer = sources.filter(s => s.kind === 'client' && s.hasBlocksJson && compareVersions(s.version, version) > 0 && s !== source)
+    .sort((p, q) => compareVersions(p.version, q.version))
+  return newer.length ? [...new Set([newer[newer.length - 1], newer[0]])] : []
+}
+
+// the plan of one version: its source, for a git source the client that supplements it, and the later client below
+// them both
 function planVersion (version, sources) {
   const source = pickSource(version, sources)
   const supplement = source.kind === 'client' && source.hasBlocksJson ? null : pickSupplement(version, sources)
-  return { version, source, supplement }
+  return { version, source, supplement, later: pickLater(version, sources, source) }
 }
 
-// the source's resource pack stack, its behaviour pack stack as stack.behavior (or null)
-function openSource (source, cacheDir, supplement = null) {
+// the source's resource pack stack, its behaviour pack stack as stack.behavior (or null); supplement and later (a list,
+// lowest first) are clients whose packs go below its own, later lowest
+function openSource (source, cacheDir, supplement = null, later = []) {
   let own
   if (source.kind === 'client') {
     own = PackStack.fromInstall(source.dir)
@@ -77,10 +88,11 @@ function openSource (source, cacheDir, supplement = null) {
     own = PackStack.fromDir(dir)
     own.behavior = behavior ? PackStack.fromDir(behavior) : null
   }
-  if (!supplement) return own
-  const below = PackStack.fromInstall(supplement.dir).layers.map(l => ({ ...l, name: `${supplement.build}/${l.name}` }))
-  const stack = new PackStack([...below, ...own.layers])
-  stack.behavior = own.behavior ?? PackStack.behaviorFromInstall(supplement.dir)
+  const below = [...later, supplement].filter(Boolean)
+  if (!below.length) return own
+  const layers = below.flatMap(c => PackStack.fromInstall(c.dir).layers.map(l => ({ ...l, name: `${c.build}/${l.name}` })))
+  const stack = new PackStack([...layers, ...own.layers])
+  stack.behavior = own.behavior ?? (supplement && PackStack.behaviorFromInstall(supplement.dir))
   return stack
 }
 
@@ -90,4 +102,4 @@ function describeSource (s) {
     : { kind: s.kind, build: s.build, ref: s.ref, match: s.match }
 }
 
-module.exports = { listSources, pickSource, pickSupplement, planVersion, openSource, describeSource, KIND_RANK }
+module.exports = { listSources, pickSource, pickSupplement, pickLater, planVersion, openSource, describeSource, KIND_RANK }

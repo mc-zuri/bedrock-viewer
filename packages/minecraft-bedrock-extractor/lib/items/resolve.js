@@ -71,6 +71,8 @@ const CODE_ICONS = {
   white_dye: ['dye_powder_white_new'],
   light_gray_dye: ['dye_powder_silver'],
   photo_item: ['camera', 'photo'],
+  // its icon of light level 15, the item's default
+  light_block: ['light_block_15'],
   portfolio: ['book_portfolio'],
   board: ['chalkboard_small'],
   glow_stick: ['glow_stick'],

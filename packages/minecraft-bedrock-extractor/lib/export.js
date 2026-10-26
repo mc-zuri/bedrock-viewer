@@ -11,15 +11,16 @@ function writeJson (file, value) {
 }
 
 // options: { version, out, sources, cacheDir, mcDataModule, tables, reference (the oldest Bedrock version minecraft-data
-// has block states of, which a legacy version takes its shapes from), log }
-function exportVersion ({ version, out, sources, cacheDir, mcDataModule, tables, reference, log = console.log }) {
+// has block states of, which a legacy version takes its shapes from), newest (the newest, whose stairs' corners the
+// older versions' stairs take), log }
+function exportVersion ({ version, out, sources, cacheDir, mcDataModule, tables, reference, newest, log = console.log }) {
   const mcData = mcDataModule('bedrock_' + version)
   if (!mcData?.blocksArray) throw new Error(`minecraft-data has no blocks of bedrock ${version}`)
   const legacy = mcData.blockStates ? null : { blocks: mcDataModule.legacy.bedrock.blocks, reference: mcDataModule('bedrock_' + reference) }
   const plan = planVersion(version, sources)
-  const stack = openSource(plan.source, cacheDir, plan.supplement)
+  const stack = openSource(plan.source, cacheDir, plan.supplement, plan.later)
   const store = new TextureStore(stack)
-  const blocks = exportBlocks({ stack, mcData, store, tables, legacy })
+  const blocks = exportBlocks({ stack, mcData, store, tables, legacy, newest: mcDataModule('bedrock_' + newest) })
   const items = exportItems({ version, stack, mcData, store, itemBlocks: blocks.itemBlocks, resolveBlock: blocks.resolveBlock, itemIcons: tables.itemIcons })
 
   const dir = path.join(out, version)
@@ -36,6 +37,7 @@ function exportVersion ({ version, out, sources, cacheDir, mcDataModule, tables,
     version,
     source: describeSource(plan.source),
     supplement: plan.supplement ? describeSource(plan.supplement) : undefined,
+    later: plan.later.length ? plan.later.map(describeSource) : undefined,
     blocks: Object.keys(blocks.blocksStates).length,
     states: mcData.blockStates?.length ?? Object.values(blocks.blocksStates).length,
     models: Object.keys(blocks.blocksModels).length,

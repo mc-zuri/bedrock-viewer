@@ -18,7 +18,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 
 | Package | Path | Source | Branch here | What it adds |
 |---|---|---|---|---|
-| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; a Bedrock column's biome; `examples/bedrock.js` |
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
@@ -55,10 +55,15 @@ pnpm prerender                                         # the viewer's atlases an
 
 [example/](example) serves a page with every Bedrock version minecraft-data knows and a few scenes drawn with it:
 
-- **Landscape**: hills, a lake, flowing water, trees, grass and flowers, in the plains biome's colours;
+- **Landscape**: hills, a lake with seagrass and kelp standing in its water (Bedrock's second block layer), flowing
+  water, waterlogged stairs, trees, grass and flowers, in the plains biome's colours;
 - **Every block**: every block of the version in its default state;
 - **Every state of (regex)**: every Bedrock state of the blocks whose names match (stairs by `weirdo_direction`, walls
   by their connections, doors, rails, torches...);
+- **Fences, panes, walls, stairs**: a fence pen, glass panes, iron bars, a wall and a ring of stairs, their
+  connections and corners from their states (1.26.50 on) or from their neighbours (before);
+- **Chests, beds, heads, signs**: the block entity blocks, in place: a bed of two halves, chests, heads on the floor
+  and on a wall, standing and wall signs;
 - **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the
   nether reactor, glowing obsidian, coloured and underwater torches, hard glass.
 

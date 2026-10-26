@@ -12,6 +12,7 @@
 // tintTexture (texture -> whether its faces are tinted), tessellator (fence boxes by connection mask) }
 const { DIRS, box, toElementBox, isFullBox, sidePlane, textureVars, cube, boxesToElements } = require('./boxes')
 const { rotationBetween, unrotateBox, rotateBox, rotateDir, stateFacing, baseFront, fitRotationY } = require('./orient')
+const entity = require('./entity')
 
 const result = (elements, textures, extra = {}) => ({ elements, textures, ao: true, ...extra })
 
@@ -129,6 +130,11 @@ for (const shape of ['BlockHalf', 'Stairs', 'Trapdoor', 'Cactus', 'Cauldron', 'H
   'ChorusPlant', 'ChorusFlower', 'CartographyTable', 'ElementBlock', 'Azalea', 'BigDripleaf', 'SmallDripleaf',
   'FrogSpawn', 'Tripwire', 'Bed', 'Chest']) {
   G[shape] = (state, ctx) => boxShape(state, ctx)
+}
+
+// chests, beds, heads and signs as their block entity renderers draw them (./entity.js), else as their boxes
+for (const [shape, draw] of [['Chest', entity.chest], ['Bed', entity.bed], ['Skull', entity.skull], ['Sign', entity.sign]]) {
+  G[shape] = (state, ctx) => (ctx.geometry && draw(state, ctx)) || boxShape(state, ctx)
 }
 
 G.TopSnow = (state, ctx) => result(boxesToElements(stateBoxes(state, { prefer: 'outline' }), ctx.tintFaces), textureVars(ctx.faces))
@@ -386,7 +392,8 @@ G.Wall = (state, ctx) => {
     if (!kind || kind === 'none') continue
     out.push(result([box([5, 0, 0], [11, kind === 'tall' ? 16 : 14, 8])], textures, { y: ARM_Y[side] }))
   }
-  if (p.wall_post_bit !== '0') out.unshift(result([box([4, 0, 4], [12, 16, 12])], textures))
+  // (a wall of no post and no arms draws its post)
+  if (p.wall_post_bit !== '0' || !out.length) out.unshift(result([box([4, 0, 4], [12, 16, 12])], textures))
   return parts(out)
 }
 

@@ -37,8 +37,10 @@ npx minecraft-bedrock-extractor [versions...] [--out <dir>] [--cache <dir>] [--c
 A version takes the pack of an installed client of its own build, else of its hotfix family, else the nearest of its
 minor; a git source (a release tag of [Mojang/bedrock-samples](https://github.com/Mojang/bedrock-samples), 1.19.30 on,
 or a commit of [ZtechNetwork/MCBVanillaResourcePack](https://github.com/ZtechNetwork/MCBVanillaResourcePack)) is
-supplemented by the nearest client where there is one. The public sources are blobless clones; only the files a
-version reads are checked out.
+supplemented by the nearest client where there is one. Below them all lie the nearest client newer than the version
+and the newest client, which only fill what the version's own packs lack: a server's blocks its client has no
+textures of yet (1.18.30's mud and mangrove, 1.17.30's sculk, behind experiments until 1.19.0). The public sources are
+blobless clones; only the files a version reads are checked out.
 
 After the versions it writes `versions.json`: each version's folder. A version whose files are all the same as the
 version before it shares that one's folder (`"1.21.2": "1.21.0"`).
@@ -69,21 +71,36 @@ The generator of a state is chosen by the tessellator shape the client reports f
   rails (flat, ascending, curved), ladders, vines, glow lichen, redstone dust, lily pads, fence gates, levers,
   repeaters and comparators: as their tessellator lays them out;
 - fences: the client's fence tessellator boxes (`data/tessellator_shapes.json`); walls: post and arms from their
-  states; panes and bars: a sheet to each connected side, across both axes when the states say no connection (1.26.50
-  on they say it);
+  states; panes and bars: a sheet to each connected side, across both axes when unconnected;
+- chests, beds, heads and signs, which the client draws with block entity renderers: beds with the packs'
+  `geometry.bed` laid flat across their two halves, heads with the geometry and texture the `minecraft:skull` client
+  entity gives their type, chests and signs as their renderers lay them out (the classic chest's base, lid and latch;
+  the sign's board at 2/3, on its stick or against its wall), all on their entity texture sheets (copied into
+  `blocks/` as `entity__chest__normal`, `entity__bed__red`...);
 - water and lava: the still texture, which prismarine-viewer draws as a liquid.
 
 A colour the client gives a block whatever the biome (a lily pad, a birch or spruce leaves block of before the
 flattening, a stem by its growth, redstone dust by its power) is baked into a tinted copy of the texture, since
 prismarine-viewer picks a tint by block name; grass and foliage keep `tintindex` and take the biome's colour.
 
-### What the Java format cannot say
+### Shapes the neighbours decide
 
-- Neighbours: a state is drawn from its own properties. Fences, panes and stairs of the versions whose states lack
-  their connections (before 1.26.50) draw unconnected; redstone dust draws its cross.
-- Block entities: a bed's colour, a banner's pattern, a sign's text, a skull's rotation and a chest's lid are block
-  entity data; beds, banners, skulls and chests draw as the boxes of their shapes.
-- Waterlogging: Bedrock keeps the water in a second block layer, which prismarine-viewer does not draw.
+From 1.26.50 the states of fences, panes and bars say their connections (`minecraft:connection_north`...) and those
+of stairs their corner (`minecraft:corner`). Before, the client works them out from the neighbours. Their blockstates
+are keyed by those states in every version: a fence of an older version is written with each of its connections
+(each a part of a multipart), a stair with each corner (the boxes the newest version's states of that corner have),
+and prismarine-viewer works them out from the neighbours where a block's state lacks them. Walls say their connections
+in every version.
+
+### What is not drawn
+
+- Block entity data: a bed's colour, a sign's text, a head's turn on the floor, a double chest's other half, a
+  banner's patterns are not in the state; they draw as their defaults (a red bed, a blank sign, a head facing south,
+  a single chest). Banners and decorated pots draw as the boxes of their shapes; hanging signs as their box.
+- Redstone dust draws its cross whatever its neighbours.
+
+prismarine-viewer draws a Bedrock block's second layer (the water seagrass, kelp or a waterlogged stair stand in) as
+the liquid it is.
 
 ## Tables
 

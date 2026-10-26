@@ -44,9 +44,10 @@ function extract ({ versions, out = defaultOut(), cacheDir, clientsDir, kinds, l
   const mcDataModule = minecraftData()
   const sources = sourcesOf({ cacheDir, clientsDir, kinds })
   const tables = loadTables()
-  const reference = bedrockVersions(mcDataModule, { withStates: true })[0]
+  const withStates = bedrockVersions(mcDataModule, { withStates: true })
+  const [reference, newest] = [withStates[0], withStates[withStates.length - 1]]
   const metas = (versions ?? bedrockVersions(mcDataModule)).map(version =>
-    exportVersion({ version, out, sources, cacheDir, mcDataModule, tables, reference, log }))
+    exportVersion({ version, out, sources, cacheDir, mcDataModule, tables, reference, newest, log }))
   aliasVersions(out, log)
   return metas
 }
