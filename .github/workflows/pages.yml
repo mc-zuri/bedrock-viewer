@@ -37,7 +37,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter bedrock-viewer-site... --filter bedrock-viewer-example...
         env:
           PUPPETEER_SKIP_DOWNLOAD: '1'
-      - run: pnpm rebuild canvas
+      - run: pnpm --recursive rebuild canvas
       - run: pnpm --filter minecraft-data run generate:data
       - run: pnpm --filter prismarine-viewer run prepare
         env:
