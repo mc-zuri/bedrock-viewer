@@ -72,8 +72,8 @@ pnpm prerender                                         # the viewer's atlases an
 - **Redstone dust and pistons**: dust connected by its neighbours: lines, corners, a T, a cross, a lone dust, dust
   climbing a block, into a repeater and from a torch; pistons and sticky pistons facing each way, pushing out and
   pulling back every few seconds as a server moves them (their block entity's progress, the arm's collision block);
-- **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the
-  nether reactor, glowing obsidian, coloured and underwater torches, hard glass.
+- **Bedrock-only blocks**: Education Edition's cameras, border, allow and deny, the nether reactor, glowing obsidian
+  (chemistry is left out of the assets).
 
 *All entities* opens a page of every entity of the version: focus one, set its mode (walk, sprint, swim, glide, sit,
 sleep...), what it holds and wears and its flags, and play its actions (attack, hurt, die...) and any of its animations,

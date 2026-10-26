@@ -1,6 +1,7 @@
 // The scenes the example draws, built as Bedrock chunk columns (prismarine-chunk) of one Bedrock version, from that
 // version's own block states (minecraft-data).
 const { Vec3 } = require('vec3')
+const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 
 class SceneWorld {
   constructor (version) {
@@ -106,10 +107,12 @@ function blockEntityTag (x, y, z, id, tags = {}) {
   return { type: 'compound', name: '', value }
 }
 
-// every block of the version in its default state, on a grass floor
+// every block of the version its assets draw (not chemistry, which they leave out) in its default state, on a grass
+// floor
 function gallery (world) {
   const skip = /^(air|.*_air|structure_void|light_block.*|moving_block|piston_arm_collision|sticky_piston_arm_collision|unknown|client_request_placeholder_block)$/
-  const names = Object.keys(world.mcData.blocksByName).filter(n => !skip.test(n)).sort()
+  const drawn = require('minecraft-assets')(getVersion(world.version))?.blocksStates ?? {}
+  const names = Object.keys(world.mcData.blocksByName).filter(n => !skip.test(n) && drawn[n]).sort()
   const width = Math.ceil(Math.sqrt(names.length))
   const floor = world.first('grass_block', 'grass')
   const stone = world.first('stone')
@@ -214,10 +217,10 @@ function tree (world, x, y, z, log, leaves) {
   }
 }
 
-// the blocks only Bedrock has: Education Edition's elements and chemistry, cameras, border, allow and deny, the nether
-// reactor and glowing obsidian, coloured torches, hard glass
+// the blocks only Bedrock has: Education Edition's cameras, border, allow and deny, the nether reactor and glowing
+// obsidian, item frames (chemistry is left out of the assets)
 function bedrockOnly (world) {
-  const re = /^(element_\d+|chemistry_table|compound_creator|element_constructor|lab_table|material_reducer|chemical_heat|camera|border_block|allow|deny|netherreactor|glowingobsidian|colored_torch_\w+|underwater_torch|hard_\w*glass\w*|info_update2?|reserved6|glow_stick|underwater_tnt|frame|glow_frame)$/
+  const re = /^(camera|border_block|allow|deny|netherreactor|glowingobsidian|info_update2?|reserved6|frame|glow_frame)$/
   const names = Object.keys(world.mcData.blocksByName).filter(n => re.test(n)).sort()
   const width = Math.ceil(Math.sqrt(names.length))
   const stone = world.first('stone')
