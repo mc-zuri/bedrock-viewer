@@ -24,7 +24,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 | bedrock-assets-extractor | packages/bedrock-assets-extractor | mc-zuri/bedrock-assets-extractor `main` | | the extractor |
 | minecraft-jar-extractor | packages/minecraft-jar-extractor | PrismarineJS/minecraft-jar-extractor `master` (mc-zuri's fork merged) | `bedrock-viewer` | Java's chests and other block entities as block models |
 | minecraft-data | packages/minecraft-data | PrismarineJS/node-minecraft-data `master` | `bedrock-viewer` | node-minecraft-data#468 (`blockSelectionShapes`), the data below |
-| (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes`; a name per Bedrock 0.14 - 1.0 block (the Bedrock name of each id where two shared one: `flowing_water`, `wall_sign`, `lit_furnace`...) |
+| (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | bedrock-data-generator's biomes and entities of every version and its new `blockSelectionShapes`; a name per Bedrock 0.14 - 1.0 block (the Bedrock name of each id where two shared one: `flowing_water`, `wall_sign`, `lit_furnace`...) |
 | prismarine-chunk | packages/prismarine-chunk | mc-zuri/prismarine-chunk `bedrock` (PrismarineJS/prismarine-chunk#327) | `bedrock-legacy-viewer` | 0.14 - 1.0 columns by state id, with bounds and sections; 0.15 |
 | prismarine-registry | packages/prismarine-registry | mc-zuri/prismarine-registry `bedrock` (PrismarineJS/prismarine-registry#57) | | |
 | prismarine-block | packages/prismarine-block | Pix3lPirat3/prismarine-block `fix/hashed-runtime-metadata` (PrismarineJS/prismarine-block#129) | `bedrock-legacy-properties` | 0.14 - 1.0 blocks' properties from minecraft-data's Bedrock legacy table |
@@ -36,11 +36,12 @@ The branches named here are local: push them to forks before the submodules can 
 
 minecraft-data's Bedrock files come from [bedrock-data](https://github.com/mc-zuri/bedrock-data) through
 [bedrock-data-generator](https://github.com/mc-zuri/bedrock-data-generator) (its `block-selection-shapes` branch adds
-`blockSelectionShapes`):
+`blockSelectionShapes`). The viewer, the extractor and the example read only these of its generators: blocks, block
+states, collision and selection shapes, items, biomes and entities (materials is prismarine-block's):
 
 ```sh
 cd ../bedrock-data-generator
-MINECRAFT_DATA_DIR=<this>/packages/minecraft-data/minecraft-data pnpm generate all
+MINECRAFT_DATA_DIR=<this>/packages/minecraft-data/minecraft-data pnpm generate blocks blockStates blockCollisionShapes blockSelectionShapes materials items biomes entities
 cd <this>/packages/minecraft-data && npm run generate:data
 ```
 
