@@ -1,0 +1,60 @@
+// One Bedrock version, exported into <out>/<version>/ in minecraft-assets' layout.
+const fs = require('fs')
+const path = require('path')
+const { planVersion, openSource, describeSource } = require('./sources')
+const { TextureStore } = require('./textures/store')
+const { exportBlocks } = require('./blocks')
+const { exportItems } = require('./items')
+
+function writeJson (file, value) {
+  fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n')
+}
+
+// options: { version, out, sources, cacheDir, mcDataModule, tables, reference (the oldest Bedrock version minecraft-data
+// has block states of, which a legacy version takes its shapes from), log }
+function exportVersion ({ version, out, sources, cacheDir, mcDataModule, tables, reference, log = console.log }) {
+  const mcData = mcDataModule('bedrock_' + version)
+  if (!mcData?.blocksArray) throw new Error(`minecraft-data has no blocks of bedrock ${version}`)
+  const legacy = mcData.blockStates ? null : { blocks: mcDataModule.legacy.bedrock.blocks, reference: mcDataModule('bedrock_' + reference) }
+  const plan = planVersion(version, sources)
+  const stack = openSource(plan.source, cacheDir, plan.supplement)
+  const store = new TextureStore(stack)
+  const blocks = exportBlocks({ stack, mcData, store, tables, legacy })
+  const items = exportItems({ version, stack, mcData, store, itemBlocks: blocks.itemBlocks, resolveBlock: blocks.resolveBlock, itemIcons: tables.itemIcons })
+
+  const dir = path.join(out, version)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true })
+  writeJson(path.join(dir, 'blocks_states.json'), blocks.blocksStates)
+  writeJson(path.join(dir, 'blocks_models.json'), blocks.blocksModels)
+  writeJson(path.join(dir, 'blocks_textures.json'), blocks.blocksTextures)
+  writeJson(path.join(dir, 'items_textures.json'), items.itemsTextures)
+  writeJson(path.join(dir, 'texture_content.json'), items.textureContent)
+  store.write(dir)
+
+  const meta = {
+    version,
+    source: describeSource(plan.source),
+    supplement: plan.supplement ? describeSource(plan.supplement) : undefined,
+    blocks: Object.keys(blocks.blocksStates).length,
+    states: mcData.blockStates?.length ?? Object.values(blocks.blocksStates).length,
+    models: Object.keys(blocks.blocksModels).length,
+    textures: store.out.blocks.size,
+    items: items.itemsTextures.length,
+    itemTextures: store.out.items.size,
+    itemsWithoutIcon: items.unresolved,
+    shapes: blocks.report.shapes,
+    missingTile: blocks.report.missingTile,
+    unrendered: blocks.report.unrendered,
+    missingTextures: blocks.report.missingTextures,
+    failed: blocks.report.failed
+  }
+  writeJson(path.join(dir, 'meta.json'), meta)
+  log(`bedrock ${version}: ${meta.blocks} blocks, ${meta.models} models, ${meta.textures} textures from ` +
+    `${plan.source.kind} ${plan.source.build} (${plan.source.match}); ${meta.missingTile.length} drawn as missing_tile, ` +
+    `${meta.unrendered.length} without render facts, ${meta.failed.length} failed; ` +
+    `${meta.items} items, ${meta.itemsWithoutIcon.length} without an icon`)
+  return meta
+}
+
+module.exports = { exportVersion }

@@ -1,0 +1,33 @@
+{
+  "name": "bedrock-viewer-example",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Every Bedrock version minecraft-data knows, drawn by prismarine-viewer from minecraft-assets' Bedrock assets",
+  "main": "server.js",
+  "scripts": {
+    "build": "node build.js",
+    "start": "node build.js && node server.js",
+    "lint": "standard",
+    "prepare": "node build.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "minecraft-assets": "workspace:*",
+    "minecraft-data": "workspace:*",
+    "prismarine-chunk": "workspace:*",
+    "prismarine-viewer": "workspace:*",
+    "socket.io": "^4.8.1",
+    "vec3": "^0.1.10",
+    "socket.io-client": "^4.8.1",
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "standard": "^17.1.2"
+  },
+  "standard": {
+    "ignore": [
+      "public/client.js"
+    ]
+  }
+}

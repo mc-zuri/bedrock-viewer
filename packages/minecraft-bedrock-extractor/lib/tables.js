@@ -1,0 +1,32 @@
+// The checked-in tables of Bedrock facts (data/*.json), the client's own where the public sources do not say them:
+//   render      block name -> { shape, layer, tint }: the client's tessellator shape, render layer and tint method
+//   overrides   hand corrections to those facts (block_render_overrides.json)
+//   flattening  legacy block name -> the flattened block whose render facts it takes
+//   layouts     block name -> how its properties pack into the legacy data value that indexes its textures
+//   tessellator the fence tessellator's boxes by connection mask
+//   legacyKeys  block name -> the blocks.json keys its description id names (grass_block -> grass)
+//   itemIcons   the client's item definitions (identifier -> icon) per range of versions, for sources without them
+const fs = require('fs')
+const path = require('path')
+
+const DATA = path.join(__dirname, '..', 'data')
+const read = name => JSON.parse(fs.readFileSync(path.join(DATA, name), 'utf8'))
+const withoutMeta = ({ _meta, ...rest }) => rest
+
+function loadTables () {
+  const layouts = new Map()
+  for (const [name, l] of Object.entries(read('data_layouts.json').blocks)) {
+    layouts.set(name, { order: l.order, values: l.values, exact: new Map(Object.entries(l.exact ?? {})) })
+  }
+  return {
+    render: new Map(Object.entries(read('block_render.json').blocks)),
+    overrides: read('block_render_overrides.json'),
+    flattening: read('flattening.json').blocks,
+    layouts,
+    tessellator: withoutMeta(read('tessellator_shapes.json')),
+    legacyKeys: new Map(Object.entries(read('legacy_keys.json').blocks)),
+    itemIcons: read('item_icons.json')
+  }
+}
+
+module.exports = { loadTables }

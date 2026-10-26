@@ -1,0 +1,24 @@
+[submodule "packages/prismarine-viewer"]
+	path = packages/prismarine-viewer
+	url = https://github.com/PrismarineJS/prismarine-viewer
+	branch = bedrock
+[submodule "packages/prismarine-chunk"]
+	path = packages/prismarine-chunk
+	url = https://github.com/mc-zuri/prismarine-chunk
+	branch = bedrock-legacy-viewer
+[submodule "packages/prismarine-registry"]
+	path = packages/prismarine-registry
+	url = https://github.com/mc-zuri/prismarine-registry
+	branch = bedrock
+[submodule "packages/prismarine-block"]
+	path = packages/prismarine-block
+	url = https://github.com/Pix3lPirat3/prismarine-block
+	branch = bedrock-legacy-properties
+[submodule "packages/minecraft-assets"]
+	path = packages/minecraft-assets
+	url = https://github.com/PrismarineJS/node-minecraft-assets
+	branch = bedrock
+[submodule "packages/minecraft-data"]
+	path = packages/minecraft-data
+	url = https://github.com/PrismarineJS/node-minecraft-data
+	branch = bedrock-viewer

@@ -1,0 +1,65 @@
+# bedrock-viewer
+
+Bedrock Edition support for [prismarine-viewer](https://github.com/PrismarineJS/prismarine-viewer), for every Bedrock
+version [minecraft-data](https://github.com/PrismarineJS/minecraft-data) has (0.14 to 1.26.51), done as assets rather
+than viewer code: [minecraft-bedrock-extractor](packages/minecraft-bedrock-extractor) writes Bedrock's own blocks and
+items into [minecraft-assets](https://github.com/PrismarineJS/minecraft-assets) in the format of its Java versions,
+and the viewer draws them with the code it draws Java with.
+
+```sh
+git clone --recurse-submodules <this repository>
+pnpm install          # pnpm 11; builds minecraft-data's index and prismarine-viewer's page
+pnpm example          # http://localhost:3000: pick a Bedrock version and a scene
+```
+
+## Packages
+
+A pnpm workspace; every package resolves the others from `packages/` (`pnpm-workspace.yaml` overrides them).
+
+| Package | Path | Source | Branch here | What it adds |
+|---|---|---|---|---|
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; a Bedrock column's biome; `examples/bedrock.js` |
+| minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
+| (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
+| minecraft-bedrock-extractor | packages/minecraft-bedrock-extractor | this repository | | the extractor |
+| minecraft-data | packages/minecraft-data | PrismarineJS/node-minecraft-data `master` | `bedrock-viewer` | node-minecraft-data#468 (`blockSelectionShapes`), the data below |
+| (data) | packages/minecraft-data/minecraft-data | mc-zuri/minecraft-data `data` | `bedrock-viewer` | every generator of bedrock-data-generator (`pnpm generate all`) and its new `blockSelectionShapes` |
+| prismarine-chunk | packages/prismarine-chunk | mc-zuri/prismarine-chunk `bedrock` (PrismarineJS/prismarine-chunk#327) | `bedrock-legacy-viewer` | 0.14 - 1.0 columns by state id, with bounds and sections; 0.15 |
+| prismarine-registry | packages/prismarine-registry | mc-zuri/prismarine-registry `bedrock` (PrismarineJS/prismarine-registry#57) | | |
+| prismarine-block | packages/prismarine-block | Pix3lPirat3/prismarine-block `fix/hashed-runtime-metadata` (PrismarineJS/prismarine-block#129) | `bedrock-legacy-properties` | 0.14 - 1.0 blocks' properties from minecraft-data's Bedrock legacy table |
+| bedrock-viewer-example | example | this repository | | the example project |
+
+The branches named here are local: push them to forks before the submodules can be cloned elsewhere.
+
+## Regenerating
+
+minecraft-data's Bedrock files come from [bedrock-data](https://github.com/mc-zuri/bedrock-data) through
+[bedrock-data-generator](https://github.com/mc-zuri/bedrock-data-generator) (its `block-selection-shapes` branch adds
+`blockSelectionShapes`):
+
+```sh
+cd ../bedrock-data-generator
+MINECRAFT_DATA_DIR=<this>/packages/minecraft-data/minecraft-data pnpm generate all
+cd <this>/packages/minecraft-data && npm run generate:data
+```
+
+The Bedrock assets, from installed clients (MCLauncher's folder) or the public packs:
+
+```sh
+pnpm extract --clients D:/apps/MCLauncher              # every version, into minecraft-assets' data/bedrock
+pnpm extract 1.21.0 --sources bedrock-samples          # one version, from Mojang's bedrock-samples only
+pnpm prerender                                         # the viewer's atlases and block states
+```
+
+## The example
+
+[example/](example) serves a page with every Bedrock version minecraft-data knows and a few scenes drawn with it:
+
+- **Landscape**: hills, a lake, flowing water, trees, grass and flowers, in the plains biome's colours;
+- **Every block**: every block of the version in its default state;
+- **Every state of (regex)**: every Bedrock state of the blocks whose names match (stairs by `weirdo_direction`, walls
+  by their connections, doors, rails, torches...);
+- **Bedrock-only blocks**: Education Edition's elements and chemistry blocks, cameras, border, allow and deny, the
+  nether reactor, glowing obsidian, coloured and underwater torches, hard glass.
+
+Click a block to read its Bedrock name and state. `#camera=x,y,z&target=x,y,z` in the address sets the camera.

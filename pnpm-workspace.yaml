@@ -1,0 +1,37 @@
+packages:
+  - packages/*
+  - example
+
+# Every package resolves the others from this workspace instead of npm (pnpm 11 reads overrides here, not from
+# package.json "pnpm"), so the viewer runs on the Bedrock PR branches of prismarine-chunk, prismarine-registry and
+# prismarine-block, and on the minecraft-assets checkout the extractor writes into.
+overrides:
+  minecraft-data: "workspace:*"
+  prismarine-chunk: "workspace:*"
+  prismarine-registry: "workspace:*"
+  prismarine-block: "workspace:*"
+  prismarine-viewer: "workspace:*"
+  minecraft-assets: "workspace:*"
+  minecraft-bedrock-extractor: "workspace:*"
+
+# prismarine-viewer's webpack build injects the browser polyfills (buffer, process) into every module it bundles, the
+# workspace packages' too, and requires events: hoisted so those packages resolve them from the root.
+publicHoistPattern:
+  - buffer
+  - events
+  - process
+
+# canvas builds the viewer's texture atlases; the viewer's headless test tools (gl, puppeteer) and the donation
+# banners do not run their install scripts.
+allowBuilds:
+  canvas: true
+  leveldb-zlib: true
+  raknet-native: true
+  gl: false
+  puppeteer: false
+  core-js: false
+  es5-ext: false
+  esbuild: false
+
+# bedrock-protocol (prismarine-chunk's and prismarine-registry's test dependency) takes prismarine-xbox-services from git
+blockExoticSubdeps: false
