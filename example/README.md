@@ -44,6 +44,16 @@ what the controls set then applies to it, or to all of them (*Apply to*):
 
 `entities.html?version=bedrock_1.26.51&mode=walk&focus=spider&filter=zombie` opens it so. The page is the
 bedrock-web-viewer proof of concept's entities page (`client/entities.js`, `client/common.js`).
+
+## All particles
+
+`particles.html` (*All particles*) lists every particle effect of a version (its packs' particles) and plays those
+ticked side by side, as prismarine-viewer's Bedrock particle system runs them: one that loops or runs on runs on, one
+that ends is played again every 3 seconds, and one whose particles the game emits itself is given some every moment.
+An effect marked `*` has components the system does not run (its tooltip says which). Filter by name, then *Play
+shown*; `particles.html?version=bedrock_1.26.51&filter=flame&play=shown` (or `play=all`, or identifiers comma
+separated) opens it so. It is the proof of concept's particles page (`client/particles.js`). 0.14 - 1.0 have no
+particle effects to list: their clients draw particles in code.
 `#camera=x,y,z&target=x,y,z` in the address places the camera.
 
 `client/index.js` is the page: prismarine-viewer's `Viewer` with an orbit camera, bundled by `build.js` (esbuild, the

@@ -378,7 +378,8 @@ function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
   }
 
   // what the items resolve against: the texture each block's item is drawn with (its carried texture, with the fixed
-  // colours its terrain entry gives, else its default state's north face), pack paths
+  // colours its terrain entry gives, else its default state's north face), pack paths; and the tessellator shape of its
+  // default state, which says whether the client draws the item as the block or flat (../items)
   const itemBlocks = new Map()
   for (const [name, list] of byName) {
     const s = list.find(s => s.index === mcData.blocksByName[name]?.defaultState) ?? list[0]
@@ -386,7 +387,7 @@ function exportBlocks ({ stack, mcData, store, tables, legacy, newest }) {
     const north = carried?.path ?? s.faces?.[2]
     if (!north || !store.stemOf(north)) continue
     const colors = carried && (carried.overlay_color || carried.tint_color) ? { overlay_color: carried.overlay_color, tint_color: carried.tint_color } : undefined
-    itemBlocks.set(name, { north, carried: !!carried, colors })
+    itemBlocks.set(name, { name, north, carried: !!carried, colors, shape: s.render?.shape ?? null })
   }
 
   return {

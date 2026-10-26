@@ -62,6 +62,9 @@ app.get('/client.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 
 // every entity of a version, its modes, equipment, flags, events and animations (client/entities.js)
 app.get('/entities.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'entities.html')))
 app.get('/entities.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'entities.js')))
+// every particle effect of a version, played side by side (client/particles.js)
+app.get('/particles.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'particles.html')))
+app.get('/particles.js', (req, res) => res.sendFile(path.join(__dirname, 'public', 'particles.js')))
 app.get('/api/state', (req, res) => res.json({
   version: current.version,
   scene: current.scene,

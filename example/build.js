@@ -1,4 +1,5 @@
-// Bundles client/index.js into public/client.js and client/entities.js into public/entities.js. prismarine-viewer's
+// Bundles client/index.js into public/client.js, client/entities.js into public/entities.js and client/particles.js into
+// public/particles.js. prismarine-viewer's
 // browser code takes its web utils in place of the Node and Electron ones (as its own webpack build does).
 const path = require('path')
 const esbuild = require('esbuild')
@@ -13,9 +14,9 @@ const webUtils = {
   }
 }
 
-// the scenes page (client.js) and the entities page (entities.js)
+// the scenes page (client.js), the entities page (entities.js) and the particles page (particles.js)
 esbuild.build({
-  entryPoints: { client: path.join(__dirname, 'client/index.js'), entities: path.join(__dirname, 'client/entities.js') },
+  entryPoints: { client: path.join(__dirname, 'client/index.js'), entities: path.join(__dirname, 'client/entities.js'), particles: path.join(__dirname, 'client/particles.js') },
   bundle: true,
   outdir: path.join(__dirname, 'public'),
   platform: 'browser',

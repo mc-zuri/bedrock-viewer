@@ -29,7 +29,8 @@
   "standard": {
     "ignore": [
       "public/client.js",
-      "public/entities.js"
+      "public/entities.js",
+      "public/particles.js"
     ]
   }
 }

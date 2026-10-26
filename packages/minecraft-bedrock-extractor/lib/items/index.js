@@ -5,6 +5,11 @@
 // An item's icon is the one the Bedrock client draws (./resolve.js): its item definition's icon, an item_texture.json
 // entry, a spawn egg in its mob's colours, a block item's carried texture. Colours the client lays over an icon are
 // baked into it.
+//
+// An item's model is its name, but a block item's the client draws as its block (in the inventory, in a hand, on the
+// ground) is 'minecraft:block/<block>': that block of blocks_states.json, in its default state. The client draws a
+// block item with no icon of its own as its block, unless the block's shape is drawn flat as an item (FLAT_SHAPES: a
+// torch, a flower, a rail, a pane are drawn as their icon).
 const { itemResolver } = require('./resolve')
 const { itemIconsFor } = require('./icons')
 const { encodePng } = require('../image/png')
@@ -42,6 +47,25 @@ function over (a, b) {
 // mob no client has (1.18's experimental firefly), with no colours to tint the egg in, as the egg and its spots
 const STAND_INS = { photo_item: 'camera' }
 const PLAIN_EGG = { path: 'textures/items/spawn_egg', overlay: 'textures/items/spawn_egg_overlay', tint: { base: 'ffffff', overlay: 'ffffff' } }
+
+// the tessellator shapes of blocks whose item the client draws flat, as its icon: sprites, planes and thin rods
+const FLAT_SHAPES = new Set([
+  'Torch', 'DoublesidedWideCrossTexture', 'DoublesidedDoublePlant', 'DoublesidedRows', 'Rail', 'Ladder', 'Vine', 'MetalBars',
+  'DoubleSideFence', 'Lever', 'Tripwire', 'TripwireHook', 'Door', 'Sign', 'Lilypad', 'Seagrass', 'Kelp', 'CoralFan',
+  'CrystalCluster', 'PointedDripstone', 'Fire', 'RedDust', 'Repeater', 'Comparator', 'Stem', 'CaveVine', 'WeepingVine',
+  'TwistingVine', 'Bamboo', 'BambooSapling', 'SweetBerryBush', 'MultifaceBlock', 'Eyeblossom', 'FireflyBush', 'PitcherCrop',
+  'PitcherPlant', 'FlowerBed', 'MangrovePropagule', 'SmallDripleaf', 'BigDripleaf', 'SporeBlossom', 'Cocoa', 'Chain',
+  'Candle', 'Lantern', 'CameraFacingSprite', 'StructureVoid', 'Water', 'Invisible', 'BubbleColumn', 'FrogSpawn', 'Bed',
+  'Bell', 'BrewingStand', 'Cauldron', 'Hopper', 'FlowerPot', 'ItemFrame', 'GlowItemFrame', 'Campfire', 'EndGateway',
+  'EndPortal', 'BlockActorRendererOnly'
+])
+
+// an item's model: its name, or of a block item the client draws as its block (its icon its block's, of a shape not
+// drawn flat), 'minecraft:block/<block>'
+function itemModel (name, icon) {
+  const block = icon?.block && !FLAT_SHAPES.has(icon.block.shape) ? icon.block.name : null
+  return block ? 'minecraft:block/' + block : name
+}
 
 // a legacy item (0.14 - 1.0), which minecraft-data names by its display name ('leather_cap', 'steak'): the Bedrock item
 // of that display name in the reference version ('leather_helmet'), else the block its id is ('update_game_block':
@@ -107,10 +131,10 @@ function exportItems ({ version, stack, mcData, store, itemBlocks, resolveBlock,
       }
     }
     if (!texture) unresolved.push(name)
-    itemsTextures.push({ name, model: name, texture })
+    itemsTextures.push({ name, model: texture ? itemModel(name, icon) : name, texture })
     textureContent.push({ name, texture: image ? 'data:image/png;base64,' + encodePng(image).toString('base64') : null })
   }
   return { itemsTextures, textureContent, unresolved }
 }
 
-module.exports = { exportItems }
+module.exports = { exportItems, itemModel }

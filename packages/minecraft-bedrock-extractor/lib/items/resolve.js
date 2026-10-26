@@ -111,7 +111,8 @@ const color = c => '#' + String(c).replace(/^#?(0x)?/i, '').toLowerCase()
 // carried texture and that one's fixed { overlay_color, tint_color }, else its default state's north face; pack paths),
 // only those the export has; aliases: legacy name -> its flattened names in data order; blockResolver(name, data): the
 // block resolver's { faces, source }; packIcons: the item definitions when the stack has none of its own.
-// Returns name -> { path, source, overlay?, tint?, colors? } or null, paths the packs' ('textures/items/apple'), with
+// Returns name -> { path, source, overlay?, tint?, colors?, block? (the icon is the block's) } or null, paths the packs'
+// ('textures/items/apple'), with
 // .eggOf(mob): the spawn egg of a mob, the same or null.
 function itemResolver ({ stack, blocks, aliases = {}, blockResolver, packIcons }) {
   const itemTexture = stack.textureData('textures/item_texture.json')
@@ -222,9 +223,10 @@ function itemResolver ({ stack, blocks, aliases = {}, blockResolver, packIcons }
   return resolver
 }
 
-// a block item's icon: its block's carried texture (with the fixed colours its terrain entry gives it), else its face
+// a block item's icon: its block's carried texture (with the fixed colours its terrain entry gives it), else its face;
+// block: the block's entry (its name and shape)
 function blockIcon (block, suffix) {
-  const out = { path: block.north, source: (block.carried ? 'carried' : 'block') + suffix }
+  const out = { path: block.north, source: (block.carried ? 'carried' : 'block') + suffix, block }
   if (block.colors) out.colors = block.colors
   return out
 }
