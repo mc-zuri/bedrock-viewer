@@ -166,3 +166,79 @@ describe('doors and chests', () => {
     assert.strictEqual(chest({ 'block_entity.pair': 'north' }).textures.chest, 'entity/chest/normal')
   })
 })
+
+describe('shapes the client lays out itself', () => {
+  it('draws a big dripleaf as its stem and leaf, the leaf tilted by its tilt and turned to its facing', () => {
+    const leaf = props => generate({ name: 'big_dripleaf', props: { big_dripleaf_head: '1', 'minecraft:cardinal_direction': 'north', ...props }, collision: [] }, ctx('BigDripleaf'))
+    const flat = leaf({ big_dripleaf_tilt: 'none' })
+    assert.strictEqual(flat.textures.top, 'south')
+    assert.strictEqual(flat.elements[0].rotation, undefined)
+    // (fully tilted it has no collision box, yet is drawn)
+    const full = leaf({ big_dripleaf_tilt: 'full_tilt' })
+    assert.deepStrictEqual(full.elements[0].rotation, { origin: [8, 15, 16], axis: 'x', angle: -45 })
+    assert.strictEqual(leaf({ big_dripleaf_tilt: 'partial_tilt' }).elements[0].rotation.angle, -22.5)
+    // (legacy direction 0 is south)
+    assert.strictEqual(generate({ name: 'big_dripleaf', props: { big_dripleaf_head: '0', direction: '0' }, collision: [[0.3, 0, 0.1, 0.7, 1, 0.5]] }, ctx('BigDripleaf')).y, 180)
+  })
+
+  it('draws a small dripleaf as a stem below and leaves above, not its whole-block box', () => {
+    const half = upper => generate({ name: 'small_dripleaf_block', props: { upper_block_bit: upper, direction: '2' }, collision: [], outline: [0, 0, 0, 1, 1, 1] }, ctx('SmallDripleaf'))
+    assert.ok(half('0').elements.every(e => e.rotation?.axis === 'y'))
+    assert.strictEqual(half('0').textures.stem, 'south')
+    assert.strictEqual(half('1').textures.stem, 'north')
+    assert.ok(half('1').elements.some(e => e.faces.up?.texture === '#top'))
+  })
+
+  it('draws sea pickles by their count, dead ones without their tufts', () => {
+    const pickles = props => generate({ name: 'sea_pickle', props, collision: [[0, 0, 0, 1, 0.5, 1]] }, ctx('SeaPickle'))
+    assert.strictEqual(pickles({ cluster_count: '0', dead_bit: '0' }).elements.length, 4)
+    assert.strictEqual(pickles({ cluster_count: '3', dead_bit: '0' }).elements.length, 16)
+    assert.strictEqual(pickles({ cluster_count: '3', dead_bit: '1' }).elements.length, 4)
+  })
+
+  it('draws a pointed dripstone as crossed planes of its thickness texture', () => {
+    const m = generate({ name: 'pointed_dripstone', props: { dripstone_thickness: 'frustum', hanging: '1' }, collision: [[0.3, 0, 0.3, 0.7, 1, 0.7]] }, ctx('PointedDripstone'))
+    assert.strictEqual(m.textures.cross, 'bottom')
+    assert.ok(m.elements.every(e => e.rotation.angle === 45))
+  })
+
+  it('draws an azalea with the plant among its faces inside it, not the potted textures', () => {
+    const potted = ['potted_azalea_bush_top', 'azalea_top', 'azalea_side', 'potted_azalea_bush_side', 'potted_azalea_bush_plant', 'azalea_plant'].map(t => 'textures/blocks/' + t)
+    const m = generate({ name: 'azalea', props: {}, collision: [[0, 0.5, 0, 1, 1, 1]] }, ctx('Azalea', { faces: potted }))
+    assert.deepStrictEqual([m.textures.top, m.textures.side, m.textures.plant], ['textures/blocks/azalea_top', 'textures/blocks/azalea_side', 'textures/blocks/azalea_plant'])
+  })
+
+  it('draws a beacon as its shell, base and core', () => {
+    const m = generate({ name: 'beacon', props: {}, collision: [[0, 0, 0, 1, 1, 1]] }, ctx('Beacon'))
+    assert.deepStrictEqual([m.textures.base, m.textures.core, m.textures.shell], ['bottom', 'top', 'north'])
+    assert.strictEqual(m.elements.length, 3)
+  })
+})
+
+describe('pistons', () => {
+  const ref = p => p.replace('textures/blocks/', '')
+  const piston = (name, props) => generate({ name, props, collision: [[0, 0, 0, 1, 1, 1]] }, ctx('Piston', { ref }))
+  const { rotateDir } = require('../lib/blocks/geometry/orient')
+
+  it('draws a retracted piston as its base and its head in front, the head sticky or not by its name', () => {
+    const m = piston('piston', { facing_direction: '1' })
+    assert.deepStrictEqual(m.elements.map(e => [e.from[1], e.to[1]]), [[0, 12], [12, 16]])
+    assert.deepStrictEqual([m.textures.inner, m.textures.head], ['top', 'piston_top_normal'])
+    assert.strictEqual(m.elements[1].faces.up.cullface, 'up')
+    assert.strictEqual(piston('sticky_piston', { facing_direction: '1' }).textures.head, 'piston_top_sticky')
+  })
+
+  it('pushes the head out on its rod by its block entity progress', () => {
+    const m = piston('piston', { facing_direction: '1', 'block_entity.Progress': '1' })
+    assert.deepStrictEqual(m.elements.map(e => [e.from[1], e.to[1]]), [[0, 12], [28, 32], [12, 28]])
+    assert.strictEqual(m.elements[1].faces.up.cullface, undefined)
+    assert.strictEqual(piston('piston', { facing_direction: '1', 'block_entity.Progress': '0.5' }).elements[1].from[1], 20)
+  })
+
+  it('turns to its facing_direction, horizontal ones the other way round from other blocks (2 south)', () => {
+    for (const [value, facing] of [['0', 'down'], ['1', 'up'], ['2', 'south'], ['3', 'north'], ['4', 'east'], ['5', 'west']]) {
+      const m = piston('piston', { facing_direction: value })
+      assert.strictEqual(rotateDir('up', m.x ?? 0, m.y ?? 0), facing, value)
+    }
+  })
+})

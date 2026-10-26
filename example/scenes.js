@@ -95,10 +95,15 @@ class SceneWorld {
   blockEntity (x, y, z, id, tags = {}) {
     const column = this.column(Math.floor(x / 16), Math.floor(z / 16))
     if (!column.addBlockEntity) return
-    const value = { id: { type: 'string', value: id }, x: { type: 'int', value: x }, y: { type: 'int', value: y }, z: { type: 'int', value: z } }
-    for (const [name, [type, v]] of Object.entries(tags)) value[name] = { type, value: v }
-    column.addBlockEntity({ type: 'compound', name: '', value })
+    column.addBlockEntity(blockEntityTag(x, y, z, id, tags))
   }
+}
+
+// a block entity's NBT, as a column keeps it and a server sends it
+function blockEntityTag (x, y, z, id, tags = {}) {
+  const value = { id: { type: 'string', value: id }, x: { type: 'int', value: x }, y: { type: 'int', value: y }, z: { type: 'int', value: z } }
+  for (const [name, [type, v]] of Object.entries(tags)) value[name] = { type, value: v }
+  return { type: 'compound', name: '', value }
 }
 
 // every block of the version in its default state, on a grass floor
@@ -398,10 +403,13 @@ function containers (world) {
 
 // Redstone dust as its neighbours connect it: a line powered from a lever and fading along its length, a corner, a T
 // and a cross, a lone dust, dust stepping up a block and down from it, and dust running into a repeater's back and a
-// torch
+// torch; and pistons and sticky pistons facing each way, pushing out and pulling back every few seconds as a server
+// moves them: their PistonArm block entity's progress (0.5, then 1; 0.5, then 0) and the arm's collision block in front
+// (pistons: 0.15 on, their block entities 1.16 on)
+const PISTON_STEP = [[0, -1, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0]] // by facing_direction
 function redstone (world) {
   const stone = world.first('stone')
-  for (let x = -1; x <= 14; x++) for (let z = -1; z <= 12; z++) world.set(x, 0, z, stone)
+  for (let x = -1; x <= 17; x++) for (let z = -1; z <= 21; z++) world.set(x, 0, z, stone)
   const dust = (x, y, z, signal = 0) => world.set(x, y, z, world.state('redstone_wire', { redstone_signal: signal }))
   // a lever and a line of dust fading from 15 along x
   world.set(0, 1, 1, world.first(['lever', { lever_direction: 'up_north_south', open_bit: 1 }], 'lever'))
@@ -420,7 +428,26 @@ function redstone (world) {
   world.set(10, 1, 8, world.first('lit_redstone_lamp', 'redstone_lamp'))
   world.set(7, 1, 11, world.first(['redstone_torch', { torch_facing_direction: 'top' }], 'redstone_torch'))
   dust(8, 1, 11, 15); dust(9, 1, 11, 14); dust(9, 1, 10, 13)
-  return { center: new Vec3(6, 1, 6), radius: 10, camera: { x: 6, y: 10, z: 16 } }
+  const pistons = []
+  const air = world.first('air')
+  const pistonRows = [
+    [15, 'piston', ['piston_arm_collision', 'pistonArmCollision', 'piston_head'], 0],
+    [19, 'sticky_piston', ['sticky_piston_arm_collision', 'stickyPistonArmCollision', 'piston_head'], 1]
+  ]
+  for (const [z, name, arms, sticky] of pistonRows) {
+    if (!world.has(name)) continue
+    PISTON_STEP.forEach(([dx, dy, dz], facing) => {
+      const pos = { x: 1 + facing * 3, y: facing === 0 ? 2 : 1, z }
+      const tag = (progress, state) => blockEntityTag(pos.x, pos.y, pos.z, 'PistonArm', {
+        Progress: ['float', progress], LastProgress: ['float', progress], State: ['byte', state], NewState: ['byte', state], Sticky: ['byte', sticky]
+      })
+      world.set(pos.x, pos.y, pos.z, world.state(name, { facing_direction: facing }))
+      world.blockEntity(pos.x, pos.y, pos.z, 'PistonArm', { Progress: ['float', 0], State: ['byte', 0], Sticky: ['byte', sticky] })
+      const arm = world.first(...arms.map(n => [n, { facing_direction: facing }]))
+      pistons.push({ pos, front: { x: pos.x + dx, y: pos.y + dy, z: pos.z + dz }, arm, air, out: [tag(0.5, 1), tag(1, 2)], back: [tag(0.5, 3), tag(0, 0)] })
+    })
+  }
+  return { center: new Vec3(8, 1, 10), radius: 14, camera: { x: 8, y: 12, z: 26 }, toggles: { every: 3, lids: [], blocks: [], pistons } }
 }
 
 // Entities, drawn and animated as the game draws them, from the version's own client entities: a crowd of mobs facing
@@ -478,7 +505,7 @@ const SCENES = {
   connected: { title: 'Fences, panes, walls, stairs', build: connected },
   blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
   containers: { title: 'Chests and doors, opening and shutting', build: containers },
-  redstone: { title: 'Redstone dust', build: redstone },
+  redstone: { title: 'Redstone dust and pistons', build: redstone },
   entities: { title: 'Entities, armor, held and dropped items, particles', build: entityScene },
   bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
 }

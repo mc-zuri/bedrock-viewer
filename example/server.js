@@ -127,8 +127,12 @@ io.on('connection', socket => {
     socket.emit('entity', pixels ? { ...entity, bedrockSkin: skinOf(version) } : entity)
   }
   let tick = 0
+  // what is sent at a later tick (a piston's second step): tick -> [() => ...]
+  const later = new Map()
   const timer = setInterval(() => {
     tick++
+    for (const send of later.get(tick) ?? []) send()
+    later.delete(tick)
     for (const entity of entities) {
       if (!entity.walk) continue
       const { from, to } = entity.walk
@@ -140,11 +144,22 @@ io.on('connection', socket => {
     if (tick % 20 === 0) {
       for (const { every = 1, ...particle } of particles) if ((tick / 20) % every === 0) socket.emit('particle', particle)
     }
-    // chests' lids opened and shut by block events, doors and barrels by block updates, every few seconds
+    // chests' lids opened and shut by block events, doors and barrels by block updates, pistons by their block entity
+    // (a step a tick) and their arm's collision block, every few seconds
     if (toggles && tick % (toggles.every * 20) === 0) {
       const open = (tick / (toggles.every * 20)) % 2 === 1
       for (const pos of toggles.lids) socket.emit('lid', { pos, open })
       for (const { pos, states } of toggles.blocks) socket.emit('blockUpdate', { pos, stateId: states[open ? 1 : 0] })
+      for (const { pos, front, arm, air, out, back } of toggles.pistons ?? []) {
+        const [first, ...rest] = open ? out : back
+        socket.emit('blockEntity', { pos, tag: first })
+        rest.forEach((tag, i) => {
+          const at = tick + i + 1
+          if (!later.has(at)) later.set(at, [])
+          later.get(at).push(() => socket.emit('blockEntity', { pos, tag }))
+        })
+        socket.emit('blockUpdate', { pos: front, stateId: open ? arm : air })
+      }
     }
   }, 50)
   socket.on('disconnect', () => clearInterval(timer))

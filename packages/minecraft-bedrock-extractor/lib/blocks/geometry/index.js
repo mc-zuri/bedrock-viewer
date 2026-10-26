@@ -122,13 +122,11 @@ G.BambooBlock = pillar
 for (const shape of ['BlockHalf', 'Stairs', 'Trapdoor', 'Cactus', 'Cauldron', 'Hopper', 'Anvil', 'EndRod',
   'LightningRod', 'Candle', 'CandleCake', 'Bell', 'Grindstone', 'Lectern', 'Campfire', 'Composter', 'Scaffolding',
   'PortalFrame', 'BrewingStand', 'Skull', 'ShulkerBox', 'Sign', 'Lever', 'TripwireHook', 'Repeater',
-  'Comparator', 'Cocoa', 'Bamboo', 'TurtleEgg', 'SeaPickle', 'SnifferEgg', 'DriedGhast', 'HeavyCore', 'Vault',
-  'ChiseledBookshelf', 'Shelf', 'CrystalCluster', 'PointedDripstone', 'Conduit', 'Beacon', 'DragonEgg',
+  'Comparator', 'Cocoa', 'Bamboo', 'TurtleEgg', 'SnifferEgg', 'DriedGhast', 'HeavyCore', 'Vault',
+  'ChiseledBookshelf', 'Shelf', 'CrystalCluster', 'Conduit', 'DragonEgg',
   'StoneCutter', 'SculkSensor', 'CalibratedSculkSensor', 'SculkShrieker', 'FlowerPot', 'ItemFrame',
-  'GlowItemFrame', 'BlockActorRendererOnly', 'ChemistryTable', 'FacingBlock', 'Terracotta', 'Piston',
-  'CommandBlock', 'EndPortal', 'EndGateway', 'SlimeBlock', 'HoneyBlock', 'DriedKelpBlock', 'MangroveRoot',
-  'ChorusPlant', 'ChorusFlower', 'CartographyTable', 'ElementBlock', 'Azalea', 'BigDripleaf', 'SmallDripleaf',
-  'FrogSpawn', 'Tripwire', 'Bed', 'Chest']) {
+  'GlowItemFrame', 'BlockActorRendererOnly', 'ChemistryTable', 'FacingBlock', 'Terracotta', 'CommandBlock', 'EndPortal', 'EndGateway', 'SlimeBlock', 'HoneyBlock', 'DriedKelpBlock', 'MangroveRoot',
+  'ChorusPlant', 'ChorusFlower', 'CartographyTable', 'ElementBlock', 'FrogSpawn', 'Tripwire', 'Bed', 'Chest']) {
   G[shape] = (state, ctx) => boxShape(state, ctx)
 }
 
@@ -476,6 +474,148 @@ G.FenceGate = (state, ctx) => {
   const facing = p['minecraft:cardinal_direction'] ?? ['south', 'west', 'north', 'east'][+(p.direction ?? 0)]
   const y = { south: 0, west: 90, north: 180, east: 270 }[facing] ?? 0
   return result(elements, { gate: ctx.faces[2], particle: ctx.faces[2] }, { y })
+}
+
+// Dripleaves, laid out facing north as the client draws them (their boxes are no help: a small dripleaf's is the whole
+// block, a fully tilted big one has none), turned to minecraft:cardinal_direction or direction (0 south, 1 west, 2
+// north, 3 east)
+const FACING_Y = { north: 0, east: 90, south: 180, west: 270 }
+const dripleafY = props => FACING_Y[props['minecraft:cardinal_direction'] ?? ['south', 'west', 'north', 'east'][+(props.direction ?? 0)]] ?? 0
+const isSet = value => value === '1' || value === 'true'
+// a stem: two planes crossing at (x, z), 45 degrees off the axes
+const stemPlanes = (from, to, uv, [x, z]) => [45, -45].map(angle => plane(from, to, ['north', 'south'], 'stem', { uv, rotation: { origin: [x, 8, z], axis: 'y', angle } }))
+// a plane's two faces, each with its own uv
+const sheet = (from, to, faces) => ({ from, to, shade: false, faces: Object.fromEntries(Object.entries(faces).map(([dir, [texture, uv, rotation]]) => [dir, { texture: '#' + texture, uv, ...(rotation ? { rotation } : {}) }])) })
+// a box's four sides, all of one texture and uv
+const sheetBox = (from, to, texture, uv) => sheet(from, to, Object.fromEntries(SIDES.map(dir => [dir, [texture, uv]])))
+
+// a big dripleaf: the stem toward the south and, at the head, the leaf over it with its tip and sides 4 deep, tilting
+// down toward its facing (partial_tilt 22.5 degrees, full_tilt 45) about its back edge. Faces: down the leaf's side,
+// up its tip, north the stem, south the leaf's top.
+G.BigDripleaf = (state, ctx) => {
+  const [side, tip, stem, top] = ctx.faces
+  const textures = { side, tip, stem, top, particle: top }
+  const extra = { ao: false, y: dripleafY(state.props) }
+  if (!isSet(state.props.big_dripleaf_head)) return result(stemPlanes([5, 0, 12], [11, 16, 12], [3, 0, 14, 16], [8, 12]), textures, extra)
+  const leaf = [
+    sheet([0, 15, 0], [16, 15, 16], { up: ['top', [0, 0, 16, 16]], down: ['top', [0, 16, 16, 0]] }),
+    sheet([0, 11, 0], [16, 15, 0], { north: ['tip', [0, 0, 16, 4]], south: ['tip', [16, 0, 0, 4]] }),
+    sheet([0, 11, 0], [0, 15, 16], { west: ['side', [0, 0, 16, 4]], east: ['side', [16, 0, 0, 4]] }),
+    sheet([16, 11, 0], [16, 15, 16], { west: ['side', [0, 0, 16, 4]], east: ['side', [16, 0, 0, 4]] })
+  ]
+  const angle = { partial_tilt: -22.5, full_tilt: -45 }[state.props.big_dripleaf_tilt]
+  if (angle) for (const el of leaf) el.rotation = { origin: [8, 15, 16], axis: 'x', angle }
+  return result([...leaf, ...stemPlanes([5, 0, 12], [11, 15, 12], [3, 0, 14, 16], [8, 12])], textures, extra)
+}
+
+// a small dripleaf: the lower half a stem, the upper half a shorter stem and three leaves at 3, 8 and 12 high, each 1
+// deep. Faces: down the leaves' side, up their top, north the upper stem, south the lower one.
+G.SmallDripleaf = (state, ctx) => {
+  const [side, top, stemTop, stemBottom] = ctx.faces
+  const upper = isSet(state.props.upper_block_bit)
+  const textures = { side, top, stem: upper ? stemTop : stemBottom, particle: top }
+  const extra = { ao: false, y: dripleafY(state.props) }
+  if (!upper) return result(stemPlanes([4.5, 0, 8], [11.5, 16, 8], [5, 0, 12, 16], [8, 8]), textures, extra)
+  const edges = (from, to) => sheetBox(from, to, 'side', [0, 0, 8, 1])
+  return result([
+    sheet([8, 3, 8], [15, 3, 15], { down: ['top', [8, 0, 0, 8]], up: ['top', [8, 8, 0, 0]] }),
+    sheet([1, 8.02, 1], [8, 8.02, 8], { down: ['top', [0, 8, 8, 0]], up: ['top', [0, 0, 8, 8]] }),
+    sheet([1, 12.02, 8], [8, 12.02, 15], { down: ['top', [8, 0, 0, 8], 270], up: ['top', [0, 0, 8, 8], 270] }),
+    edges([8, 2, 8], [15, 3, 15]),
+    edges([1, 7.02, 1], [8, 8.02, 8]),
+    edges([1, 11.02, 8], [8, 12.02, 15]),
+    ...stemPlanes([4.5, 0, 8], [11.5, 14, 8], [4, 0, 12, 14], [8, 8])
+  ], textures, extra)
+}
+
+// an azalea: its top, its sides from 5 up, and the plant inside on two crossed planes. Its faces name the top (up),
+// the side (north) and, among the rest, the plant (later clients list a potted azalea's textures there too).
+G.Azalea = (state, ctx) => {
+  const plant = ctx.faces.find(f => /(^|[/:])azalea_plant$/.test(f)) ?? ctx.faces[0]
+  const textures = { top: ctx.faces[1], side: ctx.faces[2], plant, particle: ctx.faces[1] }
+  const side = [0, 0, 16, 11]
+  const back = [16, 0, 0, 11]
+  return result([
+    sheet([0, 16, 0], [16, 16, 16], { up: ['top', [0, 0, 16, 16]], down: ['top', [0, 16, 16, 0]] }),
+    sheet([0, 5, 0], [16, 16, 0], { north: ['side', side], south: ['side', back] }),
+    sheet([0, 5, 16], [16, 16, 16], { south: ['side', side], north: ['side', back] }),
+    sheet([0, 5, 0], [0, 16, 16], { west: ['side', side], east: ['side', back] }),
+    sheet([16, 5, 0], [16, 16, 16], { east: ['side', side], west: ['side', back] }),
+    ...crossElements('plant', false, 15.9)
+  ], textures, { ao: false })
+}
+
+// a beacon: the glass shell (its side faces), the obsidian base (down) and the core (up) inside it
+G.Beacon = (state, ctx) => {
+  const [base, core, shell] = ctx.faces
+  return result([
+    box([0, 0, 0], [16, 16, 16], { texture: 'shell' }),
+    box([2, 0.1, 2], [14, 3, 14], { texture: 'base', cull: false }),
+    box([3, 3, 3], [13, 14, 13], { texture: 'core', cull: false })
+  ], { shell, base, core, particle: core })
+}
+
+// sea pickles, 1 to 4 (cluster_count 0..3): each a 4 x 4 body of the texture's layout ([x, z, height]) and, alive, a
+// tuft of two crossed planes on top; a dead one (dead_bit, out of water) the body alone
+const SEA_PICKLES = [
+  [[6, 6, 6]],
+  [[3, 3, 6], [8, 8, 4]],
+  [[6, 9, 6], [2, 2, 4], [8, 4, 6]],
+  [[2, 2, 6], [9, 10, 4], [9, 2, 6], [2, 8, 7]]
+]
+G.SeaPickle = (state, ctx) => {
+  const alive = !isSet(state.props.dead_bit)
+  const elements = []
+  for (const [x, z, h] of SEA_PICKLES[+(state.props.cluster_count ?? 0)] ?? SEA_PICKLES[0]) {
+    elements.push(sheet([x, 0, z], [x + 4, h, z + 4], {
+      down: ['pickle', [8, 1, 12, 5]],
+      up: ['pickle', [4, 1, 8, 5]],
+      north: ['pickle', [4, 5, 8, 5 + h]],
+      south: ['pickle', [0, 5, 4, 5 + h]],
+      west: ['pickle', [8, 5, 12, 5 + h]],
+      east: ['pickle', [12, 5, 16, 5 + h]]
+    }))
+    if (!alive) continue
+    elements.push(
+      sheet([x, h - 0.05, z], [x + 4, h - 0.05, z + 4], { up: ['pickle', [8, 1, 12, 5]] }),
+      sheet([x + 1.5, h - 0.8, z + 2], [x + 2.5, h + 2.7, z + 2], { north: ['pickle', [1, 0, 3, 5]], south: ['pickle', [3, 0, 1, 5]] }),
+      sheet([x + 2, h - 0.8, z + 1.5], [x + 2, h + 2.7, z + 2.5], { west: ['pickle', [13, 0, 15, 5]], east: ['pickle', [15, 0, 13, 5]] })
+    )
+  }
+  return result(elements, { pickle: ctx.faces[2], particle: ctx.faces[2] })
+}
+
+// A piston as the client draws it: the base 12 deep, its front the inside (its up face: piston_top, the inner
+// texture), and the arm its block entity renderer draws: the head 4 deep in front of the base, pushed out on its rod
+// by the PistonArm block entity's Progress (block_entity.Progress: 0, 0.5, 1). The arm's collision block draws
+// nothing. Laid out facing up, turned to facing_direction, which for pistons runs 0 down, 1 up, 2 south, 3 north,
+// 4 east, 5 west.
+const PISTON_FACING = ['down', 'up', 'south', 'north', 'east', 'west']
+G.Piston = (state, ctx) => {
+  const [bottom, inner, side] = ctx.faces
+  const sticky = /sticky/i.test(state.name)
+  const normal = ctx.ref('textures/blocks/piston_top_normal') ?? inner
+  const head = sticky ? ctx.ref('textures/blocks/piston_top_sticky') ?? normal : normal
+  const out = 16 * Math.min(1, Math.max(0, +(state.props['block_entity.Progress'] ?? 0) || 0))
+  const face = (texture, uv, extra) => ({ texture: '#' + texture, ...(uv ? { uv } : {}), ...extra })
+  const around = (texture, uv, extra = () => ({})) => Object.fromEntries(SIDES.map(d => [d, face(texture, uv, extra(d))]))
+  // (the head culls against the blocks around it only while it is in the base's block)
+  const cull = d => out ? {} : { cullface: d }
+  const elements = [
+    { from: [0, 0, 0], to: [16, 12, 16], faces: { down: face('bottom', null, { cullface: 'down' }), up: face('inner'), ...around('side', [0, 4, 16, 16], d => ({ cullface: d })) } },
+    { from: [0, 12 + out, 0], to: [16, 16 + out, 16], faces: { up: face('head', null, cull('up')), down: face('plate'), ...around('side', [0, 0, 16, 4], cull) } }
+  ]
+  if (out) elements.push({ from: [6, 12, 6], to: [10, 12 + out, 10], faces: around('side', [0, 0, out, 4], () => ({ rotation: 90 })) })
+  const facing = PISTON_FACING[+(state.props.facing_direction ?? 1)] ?? 'up'
+  return result(elements, { bottom, inner, side, head, plate: normal, particle: side }, { ao: false, ...rotationBetween('up', facing) })
+}
+
+// a pointed dripstone: two crossed planes of the texture of its thickness, which the faces give by side (tip north,
+// frustum down, middle south, base up, merge west); hanging or standing picks the textures (./resolve.js)
+const DRIPSTONE_FACE = { tip: 2, frustum: 0, middle: 3, base: 1, merge: 4 }
+G.PointedDripstone = (state, ctx) => {
+  const texture = ctx.faces[DRIPSTONE_FACE[state.props.dripstone_thickness] ?? 2]
+  return result(crossElements('cross', false), { cross: texture, particle: texture }, { ao: false })
 }
 
 // the states the render table knows nothing of: a box where they collide or are low, two crossed planes otherwise

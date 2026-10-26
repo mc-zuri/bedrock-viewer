@@ -79,6 +79,13 @@ The generator of a state is chosen by the tessellator shape the client reports f
 - plants: two crossed planes; crops four in a #; torches (leaning off the wall their selection box is on), lanterns,
   rails (flat, ascending, curved), ladders, vines, glow lichen, redstone dust, lily pads, fence gates, levers,
   repeaters and comparators: as their tessellator lays them out;
+- big dripleaves (the leaf tilted by its tilt), small dripleaves, azaleas, beacons (shell, base and core), sea pickles
+  (by count, dead ones without their tufts) and pointed dripstone (crossed planes of the texture of its thickness,
+  hanging or standing): as the client lays them out, not their boxes (a small dripleaf's is the whole block, a fully
+  tilted leaf has none);
+- pistons: the base 12 deep with the inside of its front, and the arm the client's block entity renderer draws, the
+  head pushed out on its rod by the block entity's progress (`block_entity.Progress`); the arm's collision block draws
+  nothing, as in the client. A piston's `facing_direction` runs 0 down, 1 up, 2 south, 3 north, 4 east, 5 west;
 - fences: the client's fence tessellator boxes (`data/tessellator_shapes.json`); walls: post and arms from their
   states; panes and bars: a sheet to each connected side, across both axes when unconnected;
 - chests, beds, heads, signs, hanging signs, banners, decorated pots and copper golem statues, which the client draws
@@ -141,6 +148,7 @@ of the block's block entity, which prismarine-viewer gives a block as properties
 | the `skull` block (before 1.21.40) | `block_entity.SkullType` | the head of that type |
 | chests (but ender chests) | `block_entity.pair` | `none`, or the side the other half of a double chest is on (its block entity's `pairx` and `pairz`): this block's half of the double chest, on the double sheet |
 | chests | `block_entity.lid` | the lid and latch turned up about the hinge, from 0 (shut) to 9 (a quarter turn): how far a block event has opened it, which prismarine-viewer animates |
+| pistons | `block_entity.Progress` | the arm out by 0, 0.5 or 1 block: its PistonArm block entity's progress |
 
 The block entity's default comes first (a red bed, a skeleton skull facing south), the variant a block without a
 block entity takes, and after them the variants keyed by the state alone, which a value of no step takes.

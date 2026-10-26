@@ -180,7 +180,9 @@ const BLOCK_ENTITY_DATA = [
   [s => s.render?.shape === 'Skull' && s.name === 'skull', { 'block_entity.SkullType': [...Array(7).keys()] }],
   [s => s.render?.shape === 'Skull', { 'block_entity.Rotation': ROTATIONS }],
   [s => s.render?.shape === 'Chest' && !/ender/.test(s.name), { 'block_entity.pair': ['none', 'north', 'east', 'south', 'west'] }],
-  [s => s.render?.shape === 'Chest', { 'block_entity.lid': [...Array(LID_STEPS + 1).keys()] }]
+  [s => s.render?.shape === 'Chest', { 'block_entity.lid': [...Array(LID_STEPS + 1).keys()] }],
+  // how far a piston's arm is out (its PistonArm block entity's Progress)
+  [s => s.render?.shape === 'Piston', { 'block_entity.Progress': [0, 0.5, 1] }]
 ]
 
 function withBlockEntityStates (list) {

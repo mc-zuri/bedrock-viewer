@@ -64,7 +64,16 @@ const HARDCODED = {
   unpowered_comparator: { index: 0 },
   powered_comparator: { index: 1 },
   // a barrel's textures list the shut and the open one: its open_bit picks
-  barrel: { indexBy: 'open_bit' }
+  barrel: { indexBy: 'open_bit' },
+  // a pointed dripstone's list the hanging (down) and the standing (up) one: hanging picks, the values in that order
+  pointed_dripstone: { indexBy: 'hanging', order: ['1', '0'] }
+}
+
+// the texture index a state's own property picks (HARDCODED indexBy)
+function pickedIndex (hard, props) {
+  const value = props[hard.indexBy] ?? 0
+  if (!hard.order) return +value
+  return Math.max(0, hard.order.indexOf({ true: '1', false: '0' }[value] ?? String(value)))
 }
 
 class TextureResolver {
@@ -112,7 +121,7 @@ class TextureResolver {
   // name + the state's data value (its permutation index) and properties -> { faces: {face: path}, source } or null
   resolve (name, data = 0, props = {}) {
     const hard = HARDCODED[name]
-    data = hard?.index ?? (hard?.indexBy ? +(props[hard.indexBy] ?? 0) : data)
+    data = hard?.index ?? (hard?.indexBy ? pickedIndex(hard, props) : data)
     if (hard?.terrainKeys) {
       const path = terrainPath(this.terrain[hard.terrainKeys[+props[hard.by]] ?? hard.terrainKeys[0]], 0)
       if (path) return { faces: Object.fromEntries(FACES.map(f => [f, path])), source: 'hardcoded' }
