@@ -31,11 +31,17 @@ jobs:
           cache: pnpm
       # canvas draws the texture atlases
       - run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
-      # (the site and the example, whose pages and server it bundles, with what they take: not the extractors)
-      - run: pnpm install --frozen-lockfile --filter bedrock-viewer-site... --filter bedrock-viewer-example...
+      # (the site and the example, whose pages and server it bundles, with what they take: not the extractors. Their
+      # scripts run below, in order: pnpm would run minecraft-data's and the viewer's prepare at once, the viewer's
+      # needing the index minecraft-data's writes)
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter bedrock-viewer-site... --filter bedrock-viewer-example...
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: '1'
+      - run: pnpm rebuild canvas
+      - run: pnpm --filter minecraft-data run generate:data
+      - run: pnpm --filter prismarine-viewer run prepare
         env:
           PRISMARINE_VIEWER_VERSIONS: bedrock
-          PUPPETEER_SKIP_DOWNLOAD: '1'
       - run: pnpm --filter bedrock-viewer-site run build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
