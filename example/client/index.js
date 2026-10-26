@@ -1,14 +1,14 @@
 // The example's page: prismarine-viewer's Viewer, an orbit camera framed on the scene, and the Bedrock state of the
 // block clicked (the server reads it from the scene's chunks). A story scene moves the camera itself and captions
 // its chapters; the user can take the camera over and give it back.
-/* global THREE, fetch, location, URLSearchParams */
+/* global THREE, URLSearchParams */
 global.THREE = require('three')
 require('three/examples/js/controls/OrbitControls')
 const { Viewer } = require('prismarine-viewer/viewer')
-const io = require('socket.io-client')
+const server = require('./server')
 
 const $ = id => document.getElementById(id)
-const socket = io({ path: window.location.pathname + 'socket.io' })
+const socket = server.connect()
 
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(window.devicePixelRatio || 1)
@@ -124,7 +124,7 @@ socket.on('blockInfo', info => {
 })
 
 // the version and scene pickers
-fetch('api/state').then(r => r.json()).then(state => {
+server.state().then(state => {
   for (const v of state.versions) {
     const label = v.version.replace('bedrock_', 'Bedrock ') +
       (v.assets && v.assets !== v.version ? ` (assets of ${v.assets.replace('bedrock_', '')})` : '') + (v.assets ? '' : ' (not supported)')
@@ -144,9 +144,8 @@ fetch('api/state').then(r => r.json()).then(state => {
 function show () {
   $('status').textContent = 'building…'
   const q = new URLSearchParams({ version: $('version').value, scene: $('scene').value, filter: $('filter').value })
-  fetch('api/select?' + q).then(r => r.json()).then(r => {
+  server.select(q).then(r => {
     if (r.error) $('status').textContent = r.error
-    else location.reload()
   })
 }
 $('go').onclick = show

@@ -1,4 +1,4 @@
-/* global THREE, document, window, fetch */
+/* global THREE, document, window */
 // What the entities page takes from the bedrock-web-viewer proof of concept's pages: the viewer in the page with
 // orbiting controls, and the Bedrock versions it has assets for
 global.THREE = require('three')
@@ -8,7 +8,7 @@ const { Viewer } = require('prismarine-viewer/viewer')
 // The Bedrock versions the viewer's assets show, newest first, as the example's server lists them: { version, files },
 // files the version whose assets it is drawn with when it has none of its own
 async function bedrockVersions () {
-  const state = await fetch('api/state').then(r => r.json())
+  const state = await require('./server').state()
   return state.versions.filter(v => v.assets)
     .map(({ version, assets }) => ({ version, files: assets !== version ? assets : undefined }))
 }

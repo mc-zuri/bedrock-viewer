@@ -1,0 +1,35 @@
+{
+  "name": "bedrock-viewer-site",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The site GitHub Pages serves: the example's scenes and story with their server in the page, the entities and particles pages, Gameplay (a Bedrock server in the page, walked with the pathfinder) and an index of what it was built from",
+  "scripts": {
+    "build": "webpack && node build.js",
+    "built-from": "node built-from.js"
+  },
+  "dependencies": {
+    "bedrock-protocol": "3.60.1",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "minecraft-assets": "workspace:*",
+    "minecraft-data": "workspace:*",
+    "mineflayer-pathfinder": "workspace:*",
+    "pngjs": "^7.0.0",
+    "prismarine-block": "workspace:*",
+    "prismarine-chunk": "workspace:*",
+    "prismarine-nbt": "^2.8.0",
+    "prismarine-physics": "workspace:*",
+    "prismarine-registry": "workspace:*",
+    "prismarine-viewer": "workspace:*",
+    "process": "^0.11.10",
+    "protodef": "1.19.0",
+    "three": "0.128.0",
+    "uuid-1345": "^1.0.2",
+    "vec3": "^0.1.10",
+    "xxhash-wasm": "0.4.2"
+  },
+  "devDependencies": {
+    "webpack": "^5.112.2",
+    "webpack-cli": "^6.0.1"
+  }
+}

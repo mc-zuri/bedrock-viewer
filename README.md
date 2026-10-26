@@ -18,7 +18,7 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 
 | Package | Path | Source | Branch here | What it adds |
 |---|---|---|---|---|
-| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation, a piston's arm); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; Bedrock biomes' grass and leaves by the Java biomes they are, their water by their own colour; a gutter round each atlas tile, so that no block's edge takes its neighbour's texture; `examples/bedrock.js` |
+| prismarine-viewer | packages/prismarine-viewer | PrismarineJS/prismarine-viewer `master` | `bedrock` | Bedrock versions in `version.js` and `prerender.js`; flowing water and lava drawn as liquids; the water of a block's second layer; fence, pane and stair connections from the neighbours where the states lack them (before 1.26.50), and redstone dust's; a block entity's data where a blockstate is keyed by it (a bed's colour, a head's type and rotation, a piston's arm); Bedrock entities, armor, held items, skins, name tags and particle effects drawn and animated as the game does (`viewer/lib/bedrock`, the entity runtime of the bedrock-web-viewer proof of concept); a Bedrock column's biome; faces of blocks turned 270° culled against the right neighbours; Bedrock biomes' grass and leaves by the Java biomes they are, their water by their own colour; a gutter round each atlas tile, so that no block's edge takes its neighbour's texture; minecraft-data a version at a time in a bundle (`viewer/webpack/lazyMinecraftData.js`, `viewer/lib/mcData.js`: its files fetched as a version is shown); a site's block states read packed (`viewer/lib/sharedJson.js`); `setVersion(version, { blockHashes })` for a server's hashed block ids; `examples/bedrock.js` |
 | minecraft-assets | packages/minecraft-assets | PrismarineJS/node-minecraft-assets `master` | `bedrock` | `require('minecraft-assets')('bedrock_1.21.0')`: `data/bedrock/<version>/` through `data/bedrock/versions.json` |
 | (data) | packages/minecraft-assets/minecraft-assets | PrismarineJS/minecraft-assets `master` | `bedrock` | `data/bedrock/`: the extractor's output, every version |
 | bedrock-assets-extractor | packages/bedrock-assets-extractor | mc-zuri/bedrock-assets-extractor `main` | | the extractor |
@@ -28,9 +28,13 @@ A pnpm workspace; every package resolves the others from `packages/` (`pnpm-work
 | prismarine-chunk | packages/prismarine-chunk | mc-zuri/prismarine-chunk `bedrock` (PrismarineJS/prismarine-chunk#327) | `bedrock-legacy-viewer` | 0.14 - 1.0 columns by state id, with bounds and sections; 0.15 |
 | prismarine-registry | packages/prismarine-registry | mc-zuri/prismarine-registry `bedrock` (PrismarineJS/prismarine-registry#57) | | |
 | prismarine-block | packages/prismarine-block | Pix3lPirat3/prismarine-block `fix/hashed-runtime-metadata` (PrismarineJS/prismarine-block#129) | `bedrock-legacy-properties` | 0.14 - 1.0 blocks' properties from minecraft-data's Bedrock legacy table |
+| prismarine-physics | packages/prismarine-physics | mc-zuri/prismarine-physics `bedrock-web-viewer` | | Bedrock's movement (`lib/bedrock`): Gameplay's player and the pathfinder's predictions |
+| mineflayer-pathfinder | packages/mineflayer-pathfinder | mc-zuri/mineflayer-pathfinder `bedrock-web-viewer` | `bedrock-viewer` | Bedrock walking, swimming, flying, gliding and boats, in a page |
 | bedrock-viewer-example | example | this repository | | the example project |
+| bedrock-viewer-site | site | this repository | | the site GitHub Pages serves (see below) |
 
-The branches named here are local: push them to forks before the submodules can be cloned elsewhere.
+Each submodule is on mc-zuri's fork of it, on the branch named here (`.gitmodules`); the site's index lists them with
+the pull requests to their upstreams they are in, or are built on.
 
 ## Regenerating
 
@@ -52,6 +56,25 @@ pnpm extract --clients D:/apps/MCLauncher              # every version, into min
 pnpm extract 1.21.0 --sources bedrock-samples          # one version, from Mojang's bedrock-samples only
 pnpm prerender                                         # the viewer's atlases and block states
 ```
+
+## The site
+
+[site/](site) is what https://mc-zuri.github.io/bedrock-viewer/ serves, with no server: the example's scenes and story
+with the example's server in a Web Worker (`site/src/sceneServer.js` runs `example/session.js`, as `example/server.js`
+does over socket.io), the entities and particles pages, Gameplay (a Bedrock server in a Web Worker and its client, from
+the bedrock-web-viewer proof of concept: first and third person and a walk view where a click walks the player there
+with mineflayer-pathfinder; the showcase world or a recorded one in the overworld, the nether and the end; the blob
+cache; hashed block ids) and an index of the forks it was built from, their branches, commits and pull requests.
+minecraft-data reaches the browser a version at a time, and the block states packed (a tenth of their size).
+
+```sh
+PRISMARINE_VIEWER_VERSIONS=bedrock pnpm install      # prerenders the viewer's Bedrock assets
+pnpm --filter bedrock-viewer-site run build          # site/dist/: webpack, then site/build.js
+node site/serve.js                                    # http://localhost:3100
+```
+
+A push to this repository's `bedrock-viewer` branch builds it and deploys it to GitHub Pages
+(`.github/workflows/pages.yml`).
 
 ## The example
 

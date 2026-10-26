@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bedrock viewer</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; padding: 24px 28px 48px; background: #1e2127; color: #e6e6e6; font: 14px/1.5 system-ui, sans-serif; }
+    h1 { font-size: 26px; margin: 0 0 4px; }
+    .lead { color: #aab; margin: 0 0 18px; max-width: 900px; }
+    a { color: #8cc8ff; }
+    ul.pages { padding-left: 20px; margin: 0 0 26px; max-width: 1100px; }
+    ul.pages li { margin: 3px 0; }
+    #build { display: inline-block; border: 1px solid #333842; border-radius: 8px; padding: 14px 18px; background: #23272e; max-width: calc(100vw - 96px); overflow-x: auto; }
+    #build h2 { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: #9aa; margin: 0 0 10px; font-weight: 600; }
+    #build h2 span { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+    table { border-collapse: collapse; font-size: 13px; }
+    td { padding: 4px 18px 4px 0; border-top: 1px solid #2d323b; vertical-align: top; white-space: nowrap; }
+    td.name { font-weight: 600; }
+    tr.nested td.name { font-weight: 400; padding-left: 16px; color: #cdd; }
+    td.repo { color: #9aa; }
+    code { font: 12px ui-monospace, monospace; }
+    .badge { display: inline-block; font-size: 11px; line-height: 1; padding: 3px 6px; border-radius: 9px; margin-right: 4px; }
+    .dirty { background: #5a4510; color: #ffcf6b; }
+    .open { background: #163d22; color: #7ee29b; }
+    .merged { background: #34205a; color: #c8a6ff; }
+    .closed { background: #4a1f22; color: #ff9b9b; }
+    .draft { background: #333842; color: #ccc; }
+    .none { color: #778; }
+    .error { color: #ff9b9b; }
+  </style>
+</head>
+<body>
+  <h1>Bedrock Edition in prismarine-viewer</h1>
+  <p class="lead">Every Bedrock version minecraft-data knows (0.14 to 1.26.51), drawn by prismarine-viewer from minecraft-assets' Bedrock
+    assets (made by bedrock-assets-extractor). Everything below runs in the page: there is no server.</p>
+  <ul class="pages">
+    <li><a href="scenes.html?scene=showcase">Showcase: The Heart of Oakvale</a>: a world of nine biomes, the Nether and the End, and a story told in it
+      (pillagers, a nether fortress, the Ender Dragon), its camera following it; <i>Next</i> skips to its next part</li>
+    <li><a href="gameplay.html">Gameplay</a>: a Bedrock server running in the page (a Web Worker) and its client: a world in first or third person,
+      or a walk view where a click walks the player there with mineflayer-pathfinder, its route drawn; the showcase world or a recorded one
+      (overworld, nether, end), the blob cache, hashed block ids</li>
+    <li><a href="scenes.html?scene=landscape">Scenes</a>: a landscape, every block, every state of the blocks a regex names, fences and stairs, block
+      entities, chests, shulker boxes and doors opening, redstone and pistons, entities and particles, Bedrock-only blocks; any version</li>
+    <li><a href="entities.html">Entities</a>: every entity of a version, walking, sneaking, swimming, gliding, its actions and animations</li>
+    <li><a href="particles.html">Particles</a>: every particle effect of a version, played side by side</li>
+  </ul>
+  <section id="build" hidden>
+    <h2>Built from <span id="when"></span></h2>
+    <table><tbody id="repos"></tbody></table>
+  </section>
+  <script>
+    const el = (tag, props = {}, ...children) => {
+      const node = Object.assign(document.createElement(tag), props)
+      node.append(...children.filter(c => c !== null && c !== undefined))
+      return node
+    }
+    const link = (href, text) => el('a', { href, target: '_blank', rel: 'noopener' }, text)
+    // a pull request's badge and link: its state, its number and title
+    const pull = (p, prefix = '') => el('span', {}, el('span', { className: 'badge ' + (p.draft && p.state === 'open' ? 'draft' : p.state) }, p.draft && p.state === 'open' ? 'draft' : p.state),
+      link(p.url, `${prefix}#${p.number}`), ' ', el('span', { className: 'none' }, p.title.length > 60 ? p.title.slice(0, 57) + '…' : p.title), ' ')
+    fetch('built-from.json').then(r => r.json()).then(info => {
+      const when = new Date(info.builtAt)
+      document.getElementById('when').append(when.toLocaleString(), info.run ? ', ' : '', info.run ? link(info.run, 'its run') : '')
+      const rows = document.getElementById('repos')
+      for (const r of info.repos) {
+        const repo = r.repo ? `https://github.com/${r.repo}` : null
+        const pulls = el('td', {})
+        for (const p of r.pulls ?? []) pulls.append(pull(p, r.upstream ? r.upstream.split('/')[1] : ''))
+        for (const p of r.builtOn ?? []) if (!(r.pulls ?? []).some(q => q.url === p.url)) pulls.append(el('span', { className: 'none' }, 'on '), pull(p))
+        if (!(r.pulls ?? []).length && r.compare) pulls.append(link(r.compare, 'open a pull request'))
+        if (r.error) pulls.append(el('span', { className: 'error' }, ' ' + r.error))
+        rows.append(el('tr', { className: r.depth > 1 ? 'nested' : '' },
+          el('td', { className: 'name' }, (r.depth > 1 ? '└ ' : '') + r.name),
+          el('td', { className: 'repo' }, r.repo ?? '?', r.branch ? el('span', {}, ' ', repo ? link(`${repo}/tree/${r.branch}`, '#' + r.branch) : '#' + r.branch) : ''),
+          el('td', {}, r.sha ? (repo ? link(`${repo}/commit/${r.sha}`, el('code', {}, r.sha)) : el('code', {}, r.sha)) : '?', r.dirty ? el('span', { className: 'badge dirty', style: 'margin-left:6px' }, 'dirty') : ''),
+          pulls))
+      }
+      document.getElementById('build').hidden = false
+    }).catch(() => {})
+  </script>
+</body>
+</html>

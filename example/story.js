@@ -6,6 +6,20 @@
 // again when it ends.
 const TICKS = 20
 
+// the event loop's next turn, once the promise jobs of this one have run (what a tick's waits go on with): Node's
+// setImmediate, or in a browser a message to itself (setTimeout's is held back to 4 ms after a few)
+const nextTurn = typeof setImmediate === 'function'
+  ? () => new Promise(resolve => setImmediate(resolve))
+  : (() => {
+      const channel = new MessageChannel() // eslint-disable-line no-undef
+      const waiting = []
+      channel.port1.onmessage = () => waiting.shift()()
+      return () => new Promise(resolve => {
+        waiting.push(resolve)
+        channel.port2.postMessage(null)
+      })
+    })()
+
 // mineflayer's yaw (radians, 0 facing north, -z) of a step (dx, dz)
 const yawOf = (dx, dz) => Math.atan2(-dx, -dz)
 const round = v => Math.round(v * 100) / 100
@@ -75,7 +89,7 @@ class Director {
     for (let i = 0; this.fast && !this.stopped; i++) {
       if (i > 10 * 60 * TICKS) { this.endSkip(); break }
       this.tick()
-      await new Promise(resolve => setImmediate(resolve))
+      await nextTurn()
     }
   }
 

@@ -1,0 +1,161 @@
+// The client as mineflayer-pathfinder reads a mineflayer bot (bedrock-demo
+// packages/bedrock-client-pathfinder/src/bot.ts): the blocks, the player, its items, its controls and look in
+// mineflayer's radians (yaw 0 faces -z, pitch up; the client's own) given as a person gives them with the humanLike
+// option (human.js), its hands (hands.js), and the physics the pathfinder tries a move with before it makes it: the
+// Bedrock engine the client moves the player with. What it tries runs on copies: the engine changes the player's
+// collision box and attributes in place, and the player the client simulates must not move with them.
+const { EventEmitter } = require('events')
+const { Vec3 } = require('vec3')
+const { cloneValue } = require('prismarine-physics/lib/bedrock/network/rewind.ts')
+const { Hands, HOTBAR_SIZE } = require('./hands')
+const { Steering } = require('./human')
+const { movementsRegistry } = require('./movements')
+
+// the slots of a mineflayer inventory (the physics reads the armour's: 5 to 8, the chest 6)
+const INVENTORY_SLOTS = 46
+const ARMOR_SLOT = 5
+
+function createBot (body, blockAt, steering = new Steering(body)) {
+  const { client } = body
+  const { movement } = client
+  // the player the engine steps
+  const live = () => client.player
+
+  // a jump the pathfinder tries simulates some 200 ticks over the same few blocks, and a search reads the inventory
+  // for each block it would break: both are read once a tick
+  const seen = new Map()
+  let items
+  const world = {
+    getBlock (position) {
+      const key = `${Math.floor(position.x)},${Math.floor(position.y)},${Math.floor(position.z)}`
+      let block = seen.get(key)
+      if (block === undefined) {
+        block = movement.world.getBlock(position)
+        seen.set(key, block)
+      }
+      return block
+    },
+    loaded: movement.world.loaded
+  }
+
+  // the hotbar's stacks as the pathfinder reads mineflayer's items
+  const inventoryItems = () => {
+    items ??= client.interaction.hotbar.slice(0, HOTBAR_SIZE).flatMap((item, slot) => {
+      const count = item?.count ?? 0
+      return item?.networkId && count > 0 ? [{ type: item.networkId, count, name: item.name.replace(/^minecraft:/, ''), metadata: item.metadata ?? 0, slot }] : []
+    })
+    return items
+  }
+
+  const entity = {
+    // exact copies (Vec3.clone turns a -0 into 0): the pathfinder stops the bot by writing its velocity and position,
+    // which here are the engine's
+    get position () { return cloneValue(live().pos) },
+    get velocity () { return cloneValue(live().vel) },
+    get onGround () { return live().onGround },
+    get isInWater () { return !!live().isInWater },
+    get isInLava () { return !!live().isInLava },
+    get isInWeb () { return !!live().isInWeb },
+    get isCollidedHorizontally () { return !!live().isCollidedHorizontally },
+    get isCollidedVertically () { return !!live().isCollidedVertically },
+    get elytraFlying () { return !!live().elytraFlying },
+    // creative flight: the engine's own toggle (the double tap sets it at once, before the server hears of it)
+    get flying () { return !!live().bedrock?.flying },
+    get yaw () { return client.look.yaw },
+    get pitch () { return client.look.pitch },
+    get attributes () { return cloneValue(live().attributes ?? {}) },
+    effects: {},
+    metadata: { flags: {} }
+  }
+
+  // a mineflayer inventory's slots: the armour the client's (an elytra worn glides), the others empty
+  const slots = new Array(INVENTORY_SLOTS).fill(null)
+  for (let i = 0; i < 4; i++) {
+    Object.defineProperty(slots, ARMOR_SLOT + i, {
+      get () {
+        const item = client.interaction.armor[i]
+        return item ? { type: item.networkId, count: item.count, name: item.name.replace(/^minecraft:/, ''), metadata: item.metadata ?? 0, slot: ARMOR_SLOT + i } : null
+      }
+    })
+  }
+
+  // the client's entities (boats) as mineflayer's: by id, named, where the client has them
+  const entityOf = raw => ({ id: Number(raw.runtimeId), name: String(raw.type).replace(/^minecraft:/, ''), position: new Vec3(raw.pos.x, raw.pos.y, raw.pos.z), yaw: raw.yaw, raw })
+  const entities = () => Object.fromEntries([...client.entities.values()].map(raw => [Number(raw.runtimeId), entityOf(raw)]))
+
+  const bot = new EventEmitter()
+  const hands = new Hands(body, steering, (event, ...args) => bot.emit(event, ...args))
+  Object.assign(bot, {
+    registry: movementsRegistry(client.registry),
+    blockAt,
+    entity,
+    inventory: { items: inventoryItems, slots },
+    game: {
+      get minY () { return (client.chunks.loadedColumn(Math.floor(live().pos.x) >> 4, Math.floor(live().pos.z) >> 4)?.minCY ?? 0) * 16 },
+      get gameMode () { return client.gamemode }
+    },
+    // the keys the pathfinder holds (as the steering has them): a prediction starts from them
+    controlState: steering.wanted,
+    steering,
+    hands,
+    setControlState: (control, pressed) => steering.setControlState(control, pressed),
+    clearControlStates: () => steering.clearControlStates(),
+    look: async (yaw, pitch) => steering.look(yaw, pitch),
+    lookAt: async point => steering.lookAt(point),
+    dig: block => hands.dig(block),
+    stopDigging: () => hands.stopDigging(),
+    placeBlock: (reference, face) => hands.placeBlock(reference, face),
+    activateBlock: block => hands.activateBlock(block),
+    equip: (item, destination) => hands.equip(item, destination),
+    // the held item used in the air: a firework rocket boosts the glide from the next tick
+    activateItem: () => hands.useItem(),
+    // boats: one put on the water (the block's top), got in, got out of, broken
+    placeEntity: async (block, face) => hands.placeBoat(block.position),
+    mount: entity => client.interactEntity(entity.raw),
+    dismount: () => client.leaveVehicle(),
+    attack: entity => client.attackEntity(entity.raw),
+    // A tick of a prediction, steered as the live tick is (human.js): the controller's yaw, pitch and keys are what the
+    // pathfinder wants, and the tick runs on the inputs the client would send for them (kept on the state as applied)
+    physics: {
+      simulatePlayer: state => {
+        const want = { yaw: state.yaw, pitch: state.pitch, control: { ...state.control } }
+        const { look, controls } = steering.predict(state)
+        state.yaw = look.yaw
+        state.pitch = look.pitch
+        Object.assign(state.control, controls)
+        state.applied = { control: { ...controls }, yaw: look.yaw, pitch: look.pitch }
+        movement.physics.simulatePlayer(state, world)
+        state.yaw = want.yaw
+        state.pitch = want.pitch
+        Object.assign(state.control, want.control)
+        return state
+      }
+    },
+    // Forgets the blocks and items read for the last tick
+    newTick: () => {
+      seen.clear()
+      items = undefined
+    }
+  })
+  Object.defineProperties(bot, {
+    bedrockPhysicsState: { get: () => live().bedrock === undefined ? undefined : cloneValue(live().bedrock) },
+    jumpTicks: { get: () => live().jumpTicks ?? 0 },
+    jumpQueued: { get: () => live().jumpQueued ?? false },
+    // the glide boost left, and a firework rocket used for the tick to come (the client's, not yet the engine's)
+    fireworkRocketDuration: { get: () => live().fireworkRocketDuration ?? 0 },
+    fireworkUsed: { get: () => !!movement.fireworkUsed },
+    abilities: { get: () => ({ flags: { mayFly: !!live().mayFly, flying: !!live().flying }, flySpeed: live().flySpeed, verticalFlySpeed: live().verticalFlySpeed }) },
+    food: { get: () => live().food ?? 20 },
+    health: { get: () => 20 },
+    entities: { get: entities },
+    // the boat ridden (mineflayer's entity), and the engine's state of it and of the client's random numbers: copies
+    vehicle: { get: () => client.riding.entity ? entityOf(client.riding.entity) : null },
+    bedrockVehicle: { get: () => live().vehicle === undefined ? undefined : cloneValue(live().vehicle) },
+    bedrockRandomState: { get: () => live().randomState === undefined ? undefined : new Uint8Array(live().randomState) },
+    quickBarSlot: { get: () => client.interaction.selectedSlot },
+    heldItem: { get: () => inventoryItems().find(item => item.slot === client.interaction.selectedSlot) ?? null }
+  })
+  return bot
+}
+
+module.exports = { createBot }

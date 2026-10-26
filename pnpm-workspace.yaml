@@ -1,6 +1,7 @@
 packages:
   - packages/*
   - example
+  - site
 
 # Every package resolves the others from this workspace instead of npm (pnpm 11 reads overrides here, not from
 # package.json "pnpm"), so the viewer runs on the Bedrock PR branches of prismarine-chunk, prismarine-registry and
@@ -13,6 +14,8 @@ overrides:
   prismarine-viewer: "workspace:*"
   minecraft-assets: "workspace:*"
   bedrock-assets-extractor: "workspace:*"
+  mineflayer-pathfinder: "workspace:*"
+  mineflayer-pathfinder>prismarine-physics: "workspace:*"
 
 # prismarine-viewer's webpack build injects the browser polyfills (buffer, process) into every module it bundles, the
 # workspace packages' too, and requires events: hoisted so those packages resolve them from the root.

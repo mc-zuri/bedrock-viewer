@@ -1,6 +1,6 @@
 [submodule "packages/prismarine-viewer"]
 	path = packages/prismarine-viewer
-	url = https://github.com/PrismarineJS/prismarine-viewer
+	url = https://github.com/mc-zuri/prismarine-viewer
 	branch = bedrock
 [submodule "packages/prismarine-chunk"]
 	path = packages/prismarine-chunk
@@ -12,21 +12,29 @@
 	branch = bedrock
 [submodule "packages/prismarine-block"]
 	path = packages/prismarine-block
-	url = https://github.com/Pix3lPirat3/prismarine-block
+	url = https://github.com/mc-zuri/prismarine-block
 	branch = bedrock-legacy-properties
 [submodule "packages/minecraft-assets"]
 	path = packages/minecraft-assets
-	url = https://github.com/PrismarineJS/node-minecraft-assets
+	url = https://github.com/mc-zuri/node-minecraft-assets
 	branch = bedrock
 [submodule "packages/minecraft-data"]
 	path = packages/minecraft-data
-	url = https://github.com/PrismarineJS/node-minecraft-data
+	url = https://github.com/mc-zuri/minecraft-data-node
 	branch = bedrock-viewer
 [submodule "packages/minecraft-jar-extractor"]
 	path = packages/minecraft-jar-extractor
-	url = https://github.com/PrismarineJS/minecraft-jar-extractor
+	url = https://github.com/mc-zuri/minecraft-jar-extractor
 	branch = bedrock-viewer
 [submodule "packages/bedrock-assets-extractor"]
 	path = packages/bedrock-assets-extractor
 	url = https://github.com/mc-zuri/bedrock-assets-extractor.git
 	branch = main
+[submodule "packages/prismarine-physics"]
+	path = packages/prismarine-physics
+	url = https://github.com/mc-zuri/prismarine-physics
+	branch = bedrock-web-viewer
+[submodule "packages/mineflayer-pathfinder"]
+	path = packages/mineflayer-pathfinder
+	url = https://github.com/mc-zuri/mineflayer-pathfinder
+	branch = bedrock-viewer

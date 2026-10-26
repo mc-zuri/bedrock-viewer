@@ -1,8 +1,8 @@
 // The scenes the example draws, built as Bedrock chunk columns (prismarine-chunk) of one Bedrock version, from that
 // version's own block states (minecraft-data).
 const { Vec3 } = require('vec3')
-const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 const { showcase } = require('./showcase')
+const SCENES = require('./sceneList')
 
 class SceneWorld {
   constructor (version) {
@@ -118,7 +118,7 @@ function blockEntityTag (x, y, z, id, tags = {}) {
 // floor
 function gallery (world) {
   const skip = /^(air|.*_air|structure_void|light_block.*|moving_block|piston_arm_collision|sticky_piston_arm_collision|unknown|client_request_placeholder_block)$/
-  const drawn = require('minecraft-assets')(getVersion(world.version))?.blocksStates ?? {}
+  const drawn = world.drawn ?? {}
   const names = Object.keys(world.mcData.blocksByName).filter(n => !skip.test(n) && drawn[n]).sort()
   const width = Math.ceil(Math.sqrt(names.length))
   const floor = world.first('grass_block', 'grass')
@@ -529,24 +529,16 @@ function entityScene (world) {
   return { center: new Vec3(11, 2, 6), radius: 16, camera: { x: 11, y: 9, z: 24 }, entities, particles }
 }
 
-const SCENES = {
-  showcase: { title: 'Showcase: The Heart of Oakvale (a story across nine biomes)', build: showcase },
-  landscape: { title: 'Landscape', build: landscape },
-  gallery: { title: 'Every block', build: gallery },
-  states: { title: 'Every state of (regex)', build: states },
-  connected: { title: 'Fences, panes, walls, stairs', build: connected },
-  blockEntities: { title: 'Block entities: beds, heads, signs, banners', build: blockEntities },
-  containers: { title: 'Chests, shulker boxes and doors, opening and shutting', build: containers },
-  redstone: { title: 'Redstone dust and pistons', build: redstone },
-  entities: { title: 'Entities, armor, held and dropped items, particles', build: entityScene },
-  bedrockOnly: { title: 'Bedrock-only blocks', build: bedrockOnly }
-}
+// each scene's builder, by its name in sceneList.js
+const BUILDERS = { showcase, landscape, gallery, states, connected, blockEntities, containers, redstone, entities: entityScene, bedrockOnly }
 
-// (a scene's story: an async function of a Director, ./story.js, and surface(x, z), where its actors start)
-function buildScene (version, scene, filter) {
+// (a scene's story: an async function of a Director, ./story.js, and surface(x, z), where its actors start.) drawn:
+// the blocks the version's assets draw (their blocksStates), which the gallery shows
+function buildScene (version, scene, filter, { drawn = {} } = {}) {
   const world = new SceneWorld(version)
-  const { center, radius, camera, entities = [], particles = [], toggles = null, story = null, surface } = SCENES[scene].build(world, filter)
+  world.drawn = drawn
+  const { center, radius, camera, entities = [], particles = [], toggles = null, story = null, surface } = BUILDERS[scene](world, filter)
   return { world, center, radius, camera, entities, particles, toggles, story, surface }
 }
 
-module.exports = { buildScene, SCENES: Object.entries(SCENES).map(([name, s]) => ({ name, title: s.title })), SceneWorld }
+module.exports = { buildScene, SCENES, SceneWorld }

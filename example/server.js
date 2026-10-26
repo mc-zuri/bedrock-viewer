@@ -6,12 +6,11 @@
 const fs = require('fs')
 const path = require('path')
 const express = require('express')
-const { Vec3 } = require('vec3')
 const { setupRoutes } = require('prismarine-viewer/lib/common')
 const { getVersion } = require('prismarine-viewer/viewer/lib/version')
 const mcData = require('minecraft-data')
 const { buildScene, SCENES } = require('./scenes')
-const { Director } = require('./story')
+const { play } = require('./session')
 const { PNG } = require('pngjs')
 const { encodeSkin } = require('prismarine-viewer/viewer/lib/bedrock/entity/skinData')
 
@@ -33,28 +32,9 @@ function select (version, scene, filter) {
   if (!versions.some(v => v.version === version && v.assets)) throw new Error(`${version} has no assets built`)
   if (!SCENES.some(s => s.name === scene)) throw new Error(`no such scene ${scene}`)
   const started = Date.now()
-  const built = buildScene(version, scene, filter)
+  const built = buildScene(version, scene, filter, { drawn: require('minecraft-assets')(getVersion(version))?.blocksStates })
   current = { version, scene, filter, ...built }
   console.log(`${version} ${scene}${filter ? ` (${filter})` : ''}: ${built.world.columns.size} columns in ${Date.now() - started} ms`)
-}
-
-// the first block a ray from the camera meets in the scene: its position, name, Bedrock state and state id
-function raycast (origin, direction, maxDistance = 256) {
-  const { world } = current
-  const dir = new Vec3(direction.x, direction.y, direction.z).normalize()
-  for (let t = 0; t < maxDistance; t += 0.05) {
-    const pos = new Vec3(origin.x + dir.x * t, origin.y + dir.y * t, origin.z + dir.z * t).floored()
-    const column = world.columns.get(Math.floor(pos.x / 16) + ',' + Math.floor(pos.z / 16))
-    if (!column) continue
-    const stateId = column.getBlockStateId(new Vec3(pos.x & 15, pos.y, pos.z & 15))
-    const state = world.mcData.blockStates?.[stateId]
-    if (!state || state.name === 'air') continue
-    const props = Object.fromEntries(Object.entries(state.states ?? {}).map(([k, v]) => [k, v.value]))
-    const tag = column.getBlockEntity?.(new Vec3(pos.x & 15, pos.y, pos.z & 15))
-    const blockEntity = tag && Object.fromEntries(Object.entries(tag.value).filter(([k]) => !/^[xyz]$/.test(k)).map(([k, v]) => [k, v.value]))
-    return { pos, name: state.name, props, stateId, blockEntity }
-  }
-  return null
 }
 
 const app = express()
@@ -113,69 +93,11 @@ function skinOf (version) {
   }
 }
 
+// a page's showing of the current scene (session.js), over its socket
 io.on('connection', socket => {
-  const { version, world, center, radius, camera, entities, particles, toggles, story, surface } = current
-  socket.emit('version', version)
-  socket.emit('scene', { center, radius, camera, story: !!story })
-  for (const column of world.columns.values()) {
-    socket.emit('loadChunk', { x: column.x * 16, z: column.z * 16, chunk: column.toJson() })
-  }
-  // the scene's entities the version has models of (and dropped items); one walking to and fro; its particle effects,
-  // every second (or every few)
-  const models = clientEntities(version)
-  for (const { walk, skinPixels: pixels, ...entity } of entities) {
-    if (entity.name !== 'item' && !models['minecraft:' + entity.name]) continue
-    socket.emit('entity', pixels ? { ...entity, bedrockSkin: skinOf(version) } : entity)
-  }
-  // the scene's story, told to this page from its start (its actors, blocks, camera and captions)
-  const director = story && new Director({ world, models, surface, emit: (event, data) => socket.emit(event, data) })
-  director?.play(story)
-  let tick = 0
-  // what is sent at a later tick (a piston's second step): tick -> [() => ...]
-  const later = new Map()
-  const timer = setInterval(() => {
-    tick++
-    director?.tick()
-    for (const send of later.get(tick) ?? []) send()
-    later.delete(tick)
-    for (const entity of entities) {
-      if (!entity.walk) continue
-      const { from, to } = entity.walk
-      const span = (to - from) * 20
-      const t = tick % (span * 2)
-      const x = from + (t < span ? t : span * 2 - t) / 20
-      socket.emit('entity', { id: entity.id, pos: { ...entity.pos, x }, yaw: t < span ? -Math.PI / 2 : Math.PI / 2 })
-    }
-    if (tick % 20 === 0) {
-      for (const { every = 1, ...particle } of particles) if ((tick / 20) % every === 0) socket.emit('particle', particle)
-    }
-    // chests' lids opened and shut by block events, doors and barrels by block updates, pistons by their block entity
-    // (a step a tick) and their arm's collision block, every few seconds
-    if (toggles && tick % (toggles.every * 20) === 0) {
-      const open = (tick / (toggles.every * 20)) % 2 === 1
-      for (const pos of toggles.lids) socket.emit('lid', { pos, open })
-      for (const { pos, states } of toggles.blocks) socket.emit('blockUpdate', { pos, stateId: states[open ? 1 : 0] })
-      for (const { pos, front, arm, air, out, back } of toggles.pistons ?? []) {
-        const [first, ...rest] = open ? out : back
-        socket.emit('blockEntity', { pos, tag: first })
-        rest.forEach((tag, i) => {
-          const at = tick + i + 1
-          if (!later.has(at)) later.set(at, [])
-          later.get(at).push(() => socket.emit('blockEntity', { pos, tag }))
-        })
-        socket.emit('blockUpdate', { pos: front, stateId: open ? arm : air })
-      }
-    }
-  }, 50)
-  socket.on('disconnect', () => {
-    clearInterval(timer)
-    director?.stop()
-  })
-  // the page's Next: the story on to its next chapter
-  socket.on('skip', () => director?.skip())
-  socket.on('mouseClick', ({ origin, direction, button }) => {
-    if (button === 0) socket.emit('blockInfo', raycast(origin, direction))
-  })
+  const session = play(current, { emit: (event, data) => socket.emit(event, data), models: clientEntities(current.version), skin: skinOf(current.version) })
+  socket.on('disconnect', () => session.stop())
+  for (const event of ['skip', 'mouseClick']) socket.on(event, data => session.receive(event, data))
 })
 
 select(process.argv[2] ?? versions.find(v => v.assets)?.version, process.argv[3] ?? 'landscape', process.argv[4])

@@ -1,0 +1,54 @@
+# The site (site/): built from this branch, its submodules at the commits it pins (the forks' branches), and deployed
+# to GitHub Pages. The install prerenders the viewer's Bedrock assets (prismarine-viewer's prepare) and builds
+# minecraft-data's index; the site's build bundles the pages and assembles them with the prerender (site/build.js).
+name: Pages
+
+on:
+  push:
+    branches: [bedrock-viewer]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # canvas draws the texture atlases
+      - run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+      # (the site and the example, whose pages and server it bundles, with what they take: not the extractors)
+      - run: pnpm install --frozen-lockfile --filter bedrock-viewer-site... --filter bedrock-viewer-example...
+        env:
+          PRISMARINE_VIEWER_VERSIONS: bedrock
+          PUPPETEER_SKIP_DOWNLOAD: '1'
+      - run: pnpm --filter bedrock-viewer-site run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
